@@ -24,3 +24,20 @@
 
             <button type="submit">Save</button>
         </form>
+        {% if profile %}
+        <div style="margin-top:20px; font-size:1.1em; background:#f0f8ff; padding:15px; border-radius:10px;">
+            <p><strong>Height:</strong> {{ profile['height'] }} ft</p>
+            <p><strong>Weight:</strong> {{ profile['weight'] }} kg</p>
+            <p><strong>BMI:</strong> {{ profile['bmi'] }}</p>
+            <p><strong>Fitness Level:</strong> {{ profile['fitness_level'] }}</p>
+            <p><strong>Diet Plan:</strong>
+                {% if profile['bmi'] < 18.5 %} High-calorie diet {% elif profile['bmi'] < 25 %} Balanced diet {% elif
+                    profile['bmi'] < 30 %} Low-calorie diet {% else %} Strict diet {% endif %} </p>
+        </div>
+        {% endif %}
+        <!-- Back to Dashboard -->
+        <p style="margin-top:15px;">
+            <a href="/dashboard"
+                style="text-decoration:none; color:#fff; background-color:#4CAF50; padding:8px 12px; border-radius:5px;">Back
+                to Dashboard</a>
+        </p>
