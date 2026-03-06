@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>Fitness Profile</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+
+<body>
+    <div class="container">
+        <h2>Fitness Profile</h2>
+        <form method="POST">
+            <label>Height (ft)</label>
+            <input type="number" name="height" value="{{ profile['height'] if profile else '' }}" step="0.1"
+                placeholder="Height in feet">
+
+            <label>Weight (kg)</label>
+            <input type="number" name="weight" value="{{ profile['weight'] if profile else '' }}" step="0.1"
+                placeholder="Weight in kg">
+
+            <label>Fitness Level</label>
+            <input type="text" name="fitness_level" value="{{ profile['fitness_level'] if profile else '' }}"
+                placeholder="Beginner, Intermediate, Advanced">
+
+            <button type="submit">Save</button>
+        </form>
