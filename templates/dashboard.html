@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Dashboard</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+<div class="container">
+    <h2>Welcome, {{ member['name'] }}</h2>
+    <div class="dashboard-links">
+        <a href="/profile">Update Profile</a>
+        <a href="/fitness">Fitness Profile</a>
+        <a href="/membership">Select Membership Plan</a>
+        <a href="/membership_status">Membership Status</a>
+        <a href="/logout">Logout</a>
+    </div>
+</div>
+</body>
+</html>

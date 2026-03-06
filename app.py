@@ -102,5 +102,101 @@ def profile():
     conn.close()
     return render_template('profile.html', member=member)
 
+# ---------------- Fitness Profile ----------------
+@app.route('/fitness', methods=['GET','POST'])
+def fitness():
+    if 'member_id' not in session:
+        return redirect('/login')
+
+    conn = get_db_connection()
+    c = conn.cursor()
+
+    if request.method == 'POST':
+        height = float(request.form['height'])
+        weight = float(request.form['weight'])
+        bmi = round(weight / (height/100)**2, 2) if height > 0 else 0
+        fitness_level = request.form['fitness_level']
+
+        c.execute("SELECT * FROM fitness_profile WHERE member_id=?", (session['member_id'],))
+        existing = c.fetchone()
+        if existing:
+            c.execute("UPDATE fitness_profile SET height=?, weight=?, bmi=?, fitness_level=? WHERE member_id=?",
+                      (height, weight, bmi, fitness_level, session['member_id']))
+        else:
+            c.execute("INSERT INTO fitness_profile (member_id, height, weight, bmi, fitness_level) VALUES (?,?,?,?,?)",
+                      (session['member_id'], height, weight, bmi, fitness_level))
+        conn.commit()
+
+    c.execute("SELECT * FROM fitness_profile WHERE member_id=?", (session['member_id'],))
+    profile = c.fetchone()
+    conn.close()
+    return render_template('fitness.html', profile=profile)
+
+# ---------------- Membership Selection ----------------
+@app.route('/membership', methods=['GET','POST'])
+def membership():
+    if 'member_id' not in session:
+        return redirect('/login')
+
+    conn = get_db_connection()
+    c = conn.cursor()
+    c.execute("SELECT * FROM membership_plans")
+    plans = c.fetchall()
+
+    if request.method == 'POST':
+        selected_plan_id = request.form['plan_id']
+
+        # Save or update membership
+        c.execute("SELECT * FROM memberships WHERE member_id=?", (session['member_id'],))
+        existing = c.fetchone()
+
+        # Get duration of selected plan
+        c.execute("SELECT duration_days FROM membership_plans WHERE id=?", (selected_plan_id,))
+        duration = c.fetchone()['duration_days']
+
+        if existing:
+            c.execute("UPDATE memberships SET plan_id=?, start_date=date('now'), end_date=date('now','+{} days') WHERE member_id=?".format(duration),
+                      (selected_plan_id, session['member_id']))
+        else:
+            c.execute("INSERT INTO memberships (member_id, plan_id, start_date, end_date) VALUES (?,?,date('now'), date('now','+{} days'))".format(duration),
+                      (session['member_id'], selected_plan_id))
+        conn.commit()
+        flash("Membership plan selected successfully!", "success")
+        return redirect('/membership_status')
+
+    conn.close()
+    return render_template('membership.html', plans=plans)
+
+# ---------------- Membership Status ----------------
+@app.route('/membership_status')
+def membership_status():
+    if 'member_id' not in session:
+        return redirect('/login')
+
+    member_id = session['member_id']
+    conn = get_db_connection()
+    c = conn.cursor()
+    c.execute("""
+        SELECT m.*, p.plan_name, p.duration_days 
+        FROM memberships m
+        JOIN membership_plans p ON m.plan_id=p.id
+        WHERE m.member_id=?
+    """, (member_id,))
+    membership = c.fetchone()
+    conn.close()
+
+    if membership:
+        today = datetime.today().date()
+        end_date = datetime.strptime(membership['end_date'], "%Y-%m-%d").date()
+        remaining_days = (end_date - today).days
+        status = "Active" if remaining_days >= 0 else "Expired"
+    else:
+        membership = None
+        remaining_days = None
+        status = None
+
+    return render_template('membership_status.html', membership=membership, status=status, remaining_days=remaining_days)
+
+# ---------------- Run App ----------------
 if __name__ == "__main__":
     app.run(debug=True, port=8080)
