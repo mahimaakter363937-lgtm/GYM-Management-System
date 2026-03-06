@@ -1,37 +1,44 @@
 <!DOCTYPE html>
 <html>
-
 <head>
     <title>Fitness Profile</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
-
 <body>
-    <div class="container">
-        <h2>Fitness Profile</h2>
-        <form method="POST">
-            <label>Height (ft)</label>
-            <input type="number" name="height" value="{{ profile['height'] if profile else '' }}" step="0.1"
-                placeholder="Height in feet">
+<div class="container">
+    <h2>Fitness Profile</h2>
+    <form method="POST">
+    <label>Height (ft)</label>
+    <input type="number" name="height" value="{{ profile['height'] if profile else '' }}" step="0.1" placeholder="Height in feet">
 
-            <label>Weight (kg)</label>
-            <input type="number" name="weight" value="{{ profile['weight'] if profile else '' }}" step="0.1"
-                placeholder="Weight in kg">
+    <label>Weight (kg)</label>
+    <input type="number" name="weight" value="{{ profile['weight'] if profile else '' }}" step="0.1" placeholder="Weight in kg">
 
-            <label>Fitness Level</label>
-            <input type="text" name="fitness_level" value="{{ profile['fitness_level'] if profile else '' }}"
-                placeholder="Beginner, Intermediate, Advanced">
+    <label>Fitness Level</label>
+    <input type="text" name="fitness_level" value="{{ profile['fitness_level'] if profile else '' }}" placeholder="Beginner, Intermediate, Advanced">
 
-            <button type="submit">Save</button>
-        </form>
-        {% if profile %}
-        <div style="margin-top:20px; font-size:1.1em; background:#f0f8ff; padding:15px; border-radius:10px;">
-            <p><strong>Height:</strong> {{ profile['height'] }} ft</p>
-            <p><strong>Weight:</strong> {{ profile['weight'] }} kg</p>
-            <p><strong>BMI:</strong> {{ profile['bmi'] }}</p>
-            <p><strong>Fitness Level:</strong> {{ profile['fitness_level'] }}</p>
-            <p><strong>Diet Plan:</strong>
-                {% if profile['bmi'] < 18.5 %} High-calorie diet {% elif profile['bmi'] < 25 %} Balanced diet {% elif
-                    profile['bmi'] < 30 %} Low-calorie diet {% else %} Strict diet {% endif %} </p>
-        </div>
+    <button type="submit">Save</button>
+</form>
+    {% if profile %}
+<div style="margin-top:20px; font-size:1.1em; background:#f0f8ff; padding:15px; border-radius:10px;">
+    <p><strong>Height:</strong> {{ profile['height'] }} ft</p>
+    <p><strong>Weight:</strong> {{ profile['weight'] }} kg</p>
+    <p><strong>BMI:</strong> {{ profile['bmi'] }}</p>
+    <p><strong>Fitness Level:</strong> {{ profile['fitness_level'] }}</p>
+    <p><strong>Diet Plan:</strong>
+        {% if profile['bmi'] < 18.5 %}
+            High-calorie diet
+        {% elif profile['bmi'] < 25 %}
+            Balanced diet
+        {% elif profile['bmi'] < 30 %}
+            Low-calorie diet
+        {% else %}
+            Strict diet
         {% endif %}
+    </p>
+</div>
+{% endif %} 
+<!-- Back to Dashboard -->
+<p style="margin-top:15px;">
+    <a href="/dashboard" style="text-decoration:none; color:#fff; background-color:#4CAF50; padding:8px 12px; border-radius:5px;">Back to Dashboard</a>
+</p>
