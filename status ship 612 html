@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Membership Status</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+<div class="container">
+    <h2 style="color:#1E88E5;">Membership Status</h2>
+
+    {% if membership %}
+    <div style="background:#FFF3E0; padding:15px; border-radius:8px; border:1px solid #FFB74D;">
+        <p><strong>Plan Name:</strong> {{ membership['plan_name'] }}</p>
+        <p><strong>Start Date:</strong> {{ membership['start_date'] }}</p>
+        <p><strong>End Date:</strong> {{ membership['end_date'] }}</p>
+        <p><strong>Status:</strong> {{ status }}</p>
+        <p><strong>Remaining Days:</strong> {{ remaining_days }}</p>
+    </div>
+    {% else %}
+    <p>You do not have an active membership. Please select a plan.</p>
+    {% endif %}
+
+    <!-- Back to Dashboard -->
+    <p style="margin-top:20px;">
+        <a href="/dashboard" style="text-decoration:none; color:#fff; background-color:#43A047; padding:8px 12px; border-radius:5px;">Back to Dashboard</a>
+    </p>
+</div>
+</body>
+</html>
