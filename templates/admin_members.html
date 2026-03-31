@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% block title %}Manage Members - Admin{% endblock %}
+{% block content %}
+<div class="page-wrapper">
+  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem;">
+    <h2>Manage Members</h2>
+    <a href="/admin/add_member" class="btn btn-primary">Add Member</a>
+  </div>
+
+  <div class="table-container">
+    <table>
+      <thead>
+        <tr>
+          <th>ID</th>
+          <th>Name</th>
+          <th>Phone</th>
+          <th>Username</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for m in members %}
+        <tr>
+          <td>{{ m['id'] }}</td>
+          <td>{{ m['name'] }}</td>
+          <td>{{ m['phone'] }}</td>
+          <td>{{ m['username'] }}</td>
+          <td>
+            <a href="/admin/edit_member/{{ m['id'] }}" class="btn btn-warning btn-sm">Edit</a>
+            <a href="/admin/delete_member/{{ m['id'] }}" class="btn btn-danger btn-sm" onclick="return confirm('Delete member?')">Delete</a>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}
