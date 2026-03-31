@@ -472,7 +472,103 @@ def admin_delete_plan(id):
         flash("Plan not found.", "danger")
     conn.close()
     return redirect("/admin/plans")
+#  ADMIN — MEMBER MANAGEMENTS by (Richy)
+@app.route("/admin/members")
+def admin_members():
+    if admin_required():
+        return redirect("/admin/login")
+    conn    = get_db()
+    members = conn.execute("SELECT * FROM members ORDER BY name").fetchall()
+    conn.close()
+    return render_template("admin_members.html", members=members)
 
+
+@app.route("/admin/add_member", methods=["GET", "POST"])
+def admin_add_member():
+    if admin_required():
+        return redirect("/admin/login")
+
+    if request.method == "POST":
+        name         = request.form["name"]
+        phone        = request.form["phone"]
+        age          = request.form["age"]
+        fitness_goal = request.form["fitness_goal"]
+        username     = request.form["username"]
+        password     = generate_password_hash(request.form["password"])
+
+        conn = get_db()
+        try:
+            conn.execute(
+                "INSERT INTO members (name,phone,age,fitness_goal,username,password) VALUES (?,?,?,?,?,?)",
+                (name, phone, age, fitness_goal, username, password)
+            )
+            conn.commit()
+            flash(f"Member '{name}' added successfully!", "success")
+            return redirect("/admin/members")
+        except sqlite3.IntegrityError:
+            flash("Username already exists.", "danger")
+        finally:
+            conn.close()
+
+    return render_template("admin_add_member.html")
+
+
+@app.route("/admin/edit_member/<int:id>", methods=["GET", "POST"])
+def admin_edit_member(id):
+    if admin_required():
+        return redirect("/admin/login")
+
+    conn   = get_db()
+    member = conn.execute("SELECT * FROM members WHERE id=?", (id,)).fetchone()
+
+    if not member:
+        flash("Member not found.", "danger")
+        conn.close()
+        return redirect("/admin/members")
+
+    if request.method == "POST":
+        name         = request.form["name"]
+        phone        = request.form["phone"]
+        age          = request.form["age"]
+        fitness_goal = request.form["fitness_goal"]
+        new_password = request.form.get("password", "").strip()
+
+        if new_password:
+            conn.execute(
+                "UPDATE members SET name=?,phone=?,age=?,fitness_goal=?,password=? WHERE id=?",
+                (name, phone, age, fitness_goal, generate_password_hash(new_password), id)
+            )
+        else:
+            conn.execute(
+                "UPDATE members SET name=?,phone=?,age=?,fitness_goal=? WHERE id=?",
+                (name, phone, age, fitness_goal, id)
+            )
+        conn.commit()
+        conn.close()
+        flash(f"Member '{name}' updated successfully!", "success")
+        return redirect("/admin/members")
+
+    conn.close()
+    return render_template("admin_edit_member.html", member=member)
+
+
+@app.route("/admin/delete_member/<int:id>")
+def admin_delete_member(id):
+    if admin_required():
+        return redirect("/admin/login")
+
+    conn = get_db()
+    member = conn.execute("SELECT name FROM members WHERE id=?", (id,)).fetchone()
+    if member:
+        conn.execute("DELETE FROM members WHERE id=?", (id,))
+        conn.execute("DELETE FROM fitness_profile WHERE member_id=?", (id,))
+        conn.execute("DELETE FROM memberships WHERE member_id=?", (id,))
+        conn.commit()
+        flash(f"Member '{member['name']}' deleted.", "success")
+    else:
+        flash("Member not found.", "danger")
+    conn.close()
+    return redirect("/admin/members")
 # ==============================================================
 #  RUN
 # ==============================================================
