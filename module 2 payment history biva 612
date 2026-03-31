@@ -1,0 +1,104 @@
+@app.route("/admin/payments")
+def admin_payments():
+    if admin_required():
+        return redirect("/admin/login")
+
+    conn = get_db()
+    payments = conn.execute("""
+        SELECT p.*, m.name, mp.plan_name
+        FROM payments p
+        JOIN members m ON p.member_id = m.id
+        JOIN membership_plans mp ON p.plan_id = mp.id
+        ORDER BY p.payment_date DESC
+    """).fetchall()
+    conn.close()
+    return render_template("admin_payments.html", payments=payments)
+
+
+@app.route("/admin/delete_payment/<int:id>")
+def admin_delete_payment(id):
+    if admin_required():
+        return redirect("/admin/login")
+    conn = get_db()
+    conn.execute("DELETE FROM payments WHERE id=?", (id,))
+    conn.commit()
+    conn.close()
+    flash("Payment record deleted.", "success")
+    return redirect("/admin/payments")
+
+@app.route("/admin/add_payment", methods=["GET", "POST"])
+def admin_add_payment():
+    if admin_required():
+        return redirect("/admin/login")
+    
+    conn = get_db()
+    
+    if request.method == "POST":
+        member_id = request.form["member_id"]
+        plan_id   = request.form["plan_id"]
+        amount    = float(request.form["amount"])
+        status    = request.form["payment_status"]
+        date      = request.form["payment_date"]
+        
+        # Save payment record
+        conn.execute(
+            "INSERT INTO payments (member_id,plan_id,amount,payment_status,payment_date) VALUES (?,?,?,?,?)",
+            (member_id, plan_id, amount, status, date)
+        )
+        
+        # If Paid, update citizenship
+        if status == "Paid":
+            plan = conn.execute("SELECT duration_days FROM membership_plans WHERE id=?", (plan_id,)).fetchone()
+            if plan:
+                start_dt = datetime.strptime(date, "%Y-%m-%d")
+                end_dt   = start_dt + timedelta(days=plan["duration_days"])
+                
+                existing = conn.execute("SELECT id FROM memberships WHERE member_id=?", (member_id,)).fetchone()
+                if existing:
+                    conn.execute(
+                        "UPDATE memberships SET plan_id=?,start_date=?,end_date=? WHERE member_id=?",
+                        (plan_id, date, end_dt.strftime("%Y-%m-%d"), member_id)
+                    )
+                else:
+                    conn.execute(
+                        "INSERT INTO memberships (member_id,plan_id,start_date,end_date) VALUES (?,?,?,?)",
+                        (member_id, plan_id, date, end_dt.strftime("%Y-%m-%d"))
+                    )
+
+        conn.commit()
+        conn.close()
+        flash("Payment record added successfully!", "success")
+        return redirect("/admin/payments")
+
+    members = conn.execute("SELECT id, name FROM members").fetchall()
+    plans   = conn.execute("SELECT id, plan_name, price FROM membership_plans").fetchall()
+    conn.close()
+    return render_template("admin_add_payment.html", 
+                         members=members, 
+                         plans=plans, 
+                         today=datetime.now().strftime("%Y-%m-%d"))
+
+
+@app.route("/admin/edit_payment/<int:id>", methods=["GET", "POST"])
+def admin_edit_payment(id):
+    if admin_required():
+        return redirect("/admin/login")
+    
+    conn = get_db()
+    payment = conn.execute("SELECT * FROM payments WHERE id=?", (id,)).fetchone()
+    
+    if not payment:
+        flash("Payment not found.", "danger")
+        conn.close()
+        return redirect("/admin/payments")
+        
+    members = conn.execute("SELECT id, name FROM members").fetchall()
+    plans   = conn.execute("SELECT id, plan_name FROM membership_plans").fetchall()
+
+    if request.method == "POST":
+        member_id = request.form["member_id"]
+        plan_id   = request.form["plan_id"]
+        amount    = float(request.form["amount"])
+        status    = request.form["payment_status"]
+        date      = request.form["payment_date"]
+        
