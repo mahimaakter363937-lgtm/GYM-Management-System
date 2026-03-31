@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+{% block title %}Admin Dashboard - Gym Management{% endblock %}
+{% block content %}
+<div class="page-wrapper">
+  <div style="display: flex; justify-content: space-between; align-items: center;">
+    <h1>Admin Panel</h1>
+    <span class="pill pill-warning">Administrator Mode</span>
+  </div>
+  
+  <div class="stats-grid mt-3">
+    <a href="/admin/members" class="stat-card" style="text-decoration: none; color: inherit; display: block;">
+      <div class="nav-icon">👥</div>
+      <div class="stat-value" style="font-size: 1.5rem; font-weight: bold;">{{ total_members }}</div>
+      <div class="stat-label">Members</div>
+    </a>
+    <a href="/admin/plans" class="stat-card" style="text-decoration: none; color: inherit; display: block;">
+      <div class="nav-icon">📋</div>
+      <div class="stat-value" style="font-size: 1.5rem; font-weight: bold;">{{ total_plans }}</div>
+      <div class="stat-label">Plans</div>
+    </a>
+    <a href="/admin/payments" class="stat-card" style="text-decoration: none; color: inherit; display: block;">
+      <div class="nav-icon">💰</div>
+      <div class="stat-value" style="font-size: 1.5rem; font-weight: bold;">${{ total_revenue }}</div>
+      <div class="stat-label">Revenue</div>
+    </a>
+    <a href="/admin/payments" class="stat-card" style="text-decoration: none; color: inherit; display: block;">
+      <div class="nav-icon">💳</div>
+      <div class="stat-value" style="font-size: 1.5rem; font-weight: bold;">{{ total_payments }}</div>
+      <div class="stat-label">Payments</div>
+    </a>
+  </div>
+
+  <div class="nav-grid">
+    <a href="/admin/members" class="nav-card">
+      <div class="nav-icon">👥</div>
+      <div class="nav-label">Manage Members</div>
+    </a>
+    <a href="/admin/plans" class="nav-card">
+      <div class="nav-icon">📋</div>
+      <div class="nav-label">Manage Plans</div>
+    </a>
+    <a href="/admin/payments" class="nav-card">
+      <div class="nav-icon">💳</div>
+      <div class="nav-label">View Payments</div>
+    </a>
+  </div>
+</div>
+{% endblock %}

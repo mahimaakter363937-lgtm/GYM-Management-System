@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% block title %}My Profile - Gym Management{% endblock %}
+{% block content %}
+<div class="page-wrapper narrow">
+  <div class="card">
+    <h2>Edit My Profile</h2>
+    <p class="text-muted mb-4">Manage your personal information.</p>
+
+    <form method="POST">
+      <div class="form-group">
+        <label class="form-label">Full Name</label>
+        <input type="text" name="name" class="form-control" value="{{ member['name'] }}" required>
+      </div>
+      <div class="form-grid-2">
+        <div class="form-group">
+          <label class="form-label">Phone</label>
+          <input type="text" name="phone" class="form-control" value="{{ member['phone'] }}">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Age</label>
+          <input type="number" name="age" class="form-control" value="{{ member['age'] }}">
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Fitness Goal</label>
+        <select name="fitness_goal" class="form-control">
+          <option value="Weight Loss" {% if member['fitness_goal'] == 'Weight Loss' %}selected{% endif %}>Weight Loss</option>
+          <option value="Muscle Gain" {% if member['fitness_goal'] == 'Muscle Gain' %}selected{% endif %}>Muscle Gain</option>
+          <option value="Endurance" {% if member['fitness_goal'] == 'Endurance' %}selected{% endif %}>Endurance</option>
+          <option value="General Fitness" {% if member['fitness_goal'] == 'General Fitness' %}selected{% endif %}>General Fitness</option>
+        </select>
+      </div>
+      <button type="submit" class="btn btn-primary btn-full">Update Info</button>
+      <a href="/dashboard" class="btn btn-outline btn-full mt-3" style="text-align: center;">Back to Dashboard</a>
+    </form>
+  </div>
+</div>
+{% endblock %}

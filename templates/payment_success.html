@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% block title %}Payment Success - Gym Management{% endblock %}
+{% block content %}
+<div class="page-wrapper narrow text-center">
+  <div class="card">
+    <div class="nav-icon" style="font-size: 5rem; color: var(--success-color);">✅</div>
+    <h2 class="mt-3">Payment Successful!</h2>
+    <p class="text-muted">Thank you for your purchase.</p>
+
+    <div class="card mt-4" style="background-color: var(--light-color); box-shadow: none; border: 1px solid var(--border-color); text-align: left;">
+      <p>Plan activated: <strong>{{ plan_name }}</strong></p>
+      <p>Amount: <strong>${{ amount }}</strong></p>
+      <p>Payment Date: <strong>{{ date }}</strong></p>
+    </div>
+
+    <p class="mt-4">You can now access all gym facilities according to your plan.</p>
+
+    <div class="mt-4">
+      <a href="/dashboard" class="btn btn-primary btn-full">Go to Dashboard</a>
+    </div>
+  </div>
+</div>
+{% endblock %}

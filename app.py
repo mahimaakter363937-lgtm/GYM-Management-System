@@ -1,202 +1,480 @@
 from flask import Flask, render_template, request, redirect, session, flash
 import sqlite3
 from werkzeug.security import generate_password_hash, check_password_hash
-from datetime import datetime
+from datetime import datetime, timedelta
+import stripe
+import os
 
 app = Flask(__name__)
-app.secret_key = "secret_key"
+app.secret_key = "gym_elite_secret_2024"
 
-# Database helper
-def get_db_connection():
-    conn = sqlite3.connect('database.db')
+# ---------------------------------------------------------------
+# Stripe Configuration
+# Use test keys — replace with live keys in production
+# ---------------------------------------------------------------
+STRIPE_PUBLIC_KEY  = "pk_test_51000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"
+STRIPE_SECRET_KEY  = "sk_test_51000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"
+stripe.api_key = STRIPE_SECRET_KEY
+
+# ---------------------------------------------------------------
+# Admin Credentials (hardcoded — can be moved to DB later)
+# ---------------------------------------------------------------
+ADMIN_USERNAME = "admin"
+ADMIN_PASSWORD = "admin123"
+
+
+# ---------------------------------------------------------------
+# DATABASE HELPER
+# ---------------------------------------------------------------
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+DATABASE = os.path.join(BASE_DIR, "database.db")
+
+def get_db():
+    conn = sqlite3.connect(DATABASE)
     conn.row_factory = sqlite3.Row
     return conn
 
-# ---------------- Home ----------------
-@app.route('/')
+
+# ==============================================================
+#  HOME
+# ==============================================================
+@app.route("/")
 def home():
-    return render_template('index.html')
+    return render_template("index.html")
 
-# ---------------- Register ----------------
-@app.route('/register', methods=['GET','POST'])
+
+# ==============================================================
+#  MEMBER AUTH
+# ==============================================================
+@app.route("/register", methods=["GET", "POST"])
 def register():
-    if request.method == 'POST':
-        name = request.form['name']
-        phone = request.form['phone']
-        age = request.form['age']
-        fitness_goal = request.form['fitness_goal']
-        username = request.form['username']
-        password = generate_password_hash(request.form['password'])
+    if request.method == "POST":
+        name         = request.form["name"]
+        phone        = request.form["phone"]
+        age          = request.form["age"]
+        fitness_goal = request.form["fitness_goal"]
+        username     = request.form["username"]
+        password     = generate_password_hash(request.form["password"])
 
-        conn = get_db_connection()
-        c = conn.cursor()
-        c.execute(
-            'INSERT INTO members (name, phone, age, fitness_goal, username, password) VALUES (?,?,?,?,?,?)',
-            (name, phone, age, fitness_goal, username, password)
+        conn = get_db()
+        try:
+            conn.execute(
+                "INSERT INTO members (name,phone,age,fitness_goal,username,password) VALUES (?,?,?,?,?,?)",
+                (name, phone, age, fitness_goal, username, password)
+            )
+            conn.commit()
+            flash("Registration successful! Please log in.", "success")
+            return redirect("/login")
+        except sqlite3.IntegrityError:
+            flash("Username already taken. Please choose another.", "danger")
+        finally:
+            conn.close()
+
+    return render_template("register.html")
+
+
+@app.route("/login", methods=["GET", "POST"])
+def login():
+    if request.method == "POST":
+        username = request.form["username"].strip()
+        password = request.form["password"].strip()
+
+        # Check if this is the admin first
+        if username == ADMIN_USERNAME and password == ADMIN_PASSWORD:
+            session["admin"] = True
+            flash("Welcome, Admin! 👑", "success")
+            return redirect("/admin")
+
+        # Otherwise check member database
+        conn   = get_db()
+        member = conn.execute("SELECT * FROM members WHERE username=?", (username,)).fetchone()
+        conn.close()
+
+        if member and check_password_hash(member["password"], password):
+            session["member_id"] = member["id"]
+            flash(f"Welcome back, {member['name']}! 💪", "success")
+            return redirect("/dashboard")
+
+        flash("Invalid username or password.", "danger")
+    return render_template("login.html")
+
+
+@app.route("/logout")
+def logout():
+    session.clear()
+    return redirect("/")
+
+
+# ==============================================================
+#  MEMBER DASHBOARD
+# ==============================================================
+@app.route("/dashboard")
+def dashboard():
+    if "member_id" not in session:
+        return redirect("/login")
+    conn   = get_db()
+    member = conn.execute("SELECT * FROM members WHERE id=?", (session["member_id"],)).fetchone()
+    conn.close()
+    return render_template("dashboard.html", member=member)
+
+
+# ==============================================================
+#  MEMBER PROFILE
+# ==============================================================
+@app.route("/profile", methods=["GET", "POST"])
+def profile():
+    if "member_id" not in session:
+        return redirect("/login")
+
+    conn = get_db()
+    if request.method == "POST":
+        conn.execute(
+            "UPDATE members SET name=?,phone=?,age=?,fitness_goal=? WHERE id=?",
+            (request.form["name"], request.form["phone"],
+             request.form["age"], request.form["fitness_goal"],
+             session["member_id"])
+        )
+        conn.commit()
+        flash("Profile updated successfully!", "success")
+
+    member = conn.execute("SELECT * FROM members WHERE id=?", (session["member_id"],)).fetchone()
+    conn.close()
+    return render_template("profile.html", member=member)
+
+
+# ==============================================================
+#  FITNESS PROFILE
+# ==============================================================
+@app.route("/fitness", methods=["GET", "POST"])
+def fitness():
+    if "member_id" not in session:
+        return redirect("/login")
+
+    conn = get_db()
+    if request.method == "POST":
+        height        = float(request.form["height"])
+        weight        = float(request.form["weight"])
+        fitness_level = request.form["fitness_level"]
+        bmi           = round(weight / ((height / 100) ** 2), 2) if height > 0 else 0
+
+        existing = conn.execute(
+            "SELECT * FROM fitness_profile WHERE member_id=?", (session["member_id"],)
+        ).fetchone()
+
+        if existing:
+            conn.execute(
+                "UPDATE fitness_profile SET height=?,weight=?,bmi=?,fitness_level=? WHERE member_id=?",
+                (height, weight, bmi, fitness_level, session["member_id"])
+            )
+        else:
+            conn.execute(
+                "INSERT INTO fitness_profile (member_id,height,weight,bmi,fitness_level) VALUES (?,?,?,?,?)",
+                (session["member_id"], height, weight, bmi, fitness_level)
+            )
+        conn.commit()
+        flash("Fitness metrics updated!", "success")
+
+    profile = conn.execute(
+        "SELECT * FROM fitness_profile WHERE member_id=?", (session["member_id"],)
+    ).fetchone()
+    conn.close()
+    return render_template("fitness.html", profile=profile)
+
+
+# ==============================================================
+#  MEMBERSHIP — PLAN SELECTION
+# ==============================================================
+@app.route("/membership", methods=["GET", "POST"])
+def membership():
+    if "member_id" not in session:
+        return redirect("/login")
+
+    conn  = get_db()
+    plans = conn.execute("SELECT * FROM membership_plans").fetchall()
+    conn.close()
+
+    if request.method == "POST":
+        plan_id = request.form.get("plan_id")
+        if not plan_id:
+            flash("Please select a plan.", "warning")
+            return redirect("/membership")
+        # Redirect to checkout page with selected plan
+        return redirect(f"/checkout/{plan_id}")
+
+    return render_template("membership.html", plans=plans)
+
+
+# ==============================================================
+#  CHECKOUT — STRIPE PAYMENT
+# ==============================================================
+@app.route("/checkout/<int:plan_id>")
+def checkout(plan_id):
+    if "member_id" not in session:
+        return redirect("/login")
+
+    conn = get_db()
+    plan = conn.execute("SELECT * FROM membership_plans WHERE id=?", (plan_id,)).fetchone()
+    conn.close()
+
+    if not plan:
+        flash("Plan not found.", "danger")
+        return redirect("/membership")
+
+    return render_template("checkout.html", plan=plan, stripe_public_key=STRIPE_PUBLIC_KEY)
+
+
+# ==============================================================
+#  PROCESS STRIPE PAYMENT
+# ==============================================================
+@app.route("/process_payment", methods=["POST"])
+def process_payment():
+    if "member_id" not in session:
+        return redirect("/login")
+
+    plan_id = request.form.get("plan_id")
+    # We no longer need the stripeToken since we are allowing any card info
+    card_number = request.form.get("card_number")
+    cvc = request.form.get("cvc")
+
+    conn = get_db()
+    plan = conn.execute("SELECT * FROM membership_plans WHERE id=?", (plan_id,)).fetchone()
+
+    if not plan:
+        flash("Invalid plan selected.", "danger")
+        conn.close()
+        return redirect("/membership")
+
+    # ---------- Simulation: Always mark as Paid ----------
+    payment_status = "Paid"
+    
+    # In a real app involving Stripe, we would call Stripe API here.
+    # But as per user request, we accept any random details.
+    print(f"DEBUG: Processing simulated payment for Plan {plan_id} with Card {card_number}")
+
+    # ---------- Save payment record ----------
+    today    = datetime.now()
+    end_date = today + timedelta(days=plan["duration_days"])
+
+    conn.execute(
+        "INSERT INTO payments (member_id,plan_id,amount,payment_status,payment_date) VALUES (?,?,?,?,?)",
+        (session["member_id"], plan_id, plan["price"], payment_status, today.strftime("%Y-%m-%d"))
+    )
+
+    # Activate / update membership
+    existing = conn.execute(
+        "SELECT * FROM memberships WHERE member_id=?", (session["member_id"],)
+    ).fetchone()
+
+    if existing:
+        conn.execute(
+            "UPDATE memberships SET plan_id=?,start_date=?,end_date=? WHERE member_id=?",
+            (plan_id, today.strftime("%Y-%m-%d"), end_date.strftime("%Y-%m-%d"), session["member_id"])
+        )
+    else:
+        conn.execute(
+            "INSERT INTO memberships (member_id,plan_id,start_date,end_date) VALUES (?,?,?,?)",
+            (session["member_id"], plan_id, today.strftime("%Y-%m-%d"), end_date.strftime("%Y-%m-%d"))
+        )
+
+    conn.commit()
+    conn.close()
+
+    return render_template(
+        "payment_success.html",
+        plan_name = plan["plan_name"],
+        amount    = f"{plan['price']:.2f}",
+        date      = today.strftime("%B %d, %Y")
+    )
+
+
+# ==============================================================
+#  MEMBERSHIP STATUS
+# ==============================================================
+@app.route("/membership_status")
+def membership_status():
+    if "member_id" not in session:
+        return redirect("/login")
+
+    conn = get_db()
+    membership = conn.execute("""
+        SELECT m.*, p.plan_name, p.duration_days
+        FROM memberships m
+        JOIN membership_plans p ON m.plan_id = p.id
+        WHERE m.member_id = ?
+    """, (session["member_id"],)).fetchone()
+    conn.close()
+
+    remaining_days = None
+    status = None
+    if membership:
+        today          = datetime.today().date()
+        end_date       = datetime.strptime(membership["end_date"][:10], "%Y-%m-%d").date()
+        remaining_days = (end_date - today).days
+        status         = "Active" if remaining_days >= 0 else "Expired"
+
+    return render_template(
+        "membership_status.html",
+        membership     = membership,
+        status         = status,
+        remaining_days = remaining_days
+    )
+
+
+# ==============================================================
+#  USER PAYMENT HISTORY
+# ==============================================================
+@app.route("/payment_history")
+def payment_history():
+    if "member_id" not in session:
+        return redirect("/login")
+
+    conn = get_db()
+    payments = conn.execute("""
+        SELECT p.*, mp.plan_name
+        FROM payments p
+        JOIN membership_plans mp ON p.plan_id = mp.id
+        WHERE p.member_id = ?
+        ORDER BY p.payment_date DESC
+    """, (session["member_id"],)).fetchall()
+    conn.close()
+    return render_template("payment_history.html", payments=payments)
+
+
+# ==============================================================
+#  ADMIN AUTH
+# ==============================================================
+@app.route("/admin/login", methods=["GET", "POST"])
+def admin_login():
+    if request.method == "POST":
+        username = request.form["username"].strip()
+        password = request.form["password"].strip()
+        if (username == ADMIN_USERNAME and
+                password == ADMIN_PASSWORD):
+            session["admin"] = True
+            flash("Welcome, Admin! 👑", "success")
+            return redirect("/admin")
+        flash("Invalid admin credentials.", "danger")
+    return render_template("admin_login.html")
+
+
+@app.route("/admin/logout")
+def admin_logout():
+    session.pop("admin", None)
+    return redirect("/")
+
+
+def admin_required():
+    return "admin" not in session
+
+
+# ==============================================================
+#  ADMIN DASHBOARD
+# ==============================================================
+@app.route("/admin")
+def admin_dashboard():
+    if admin_required():
+        return redirect("/admin/login")
+
+    conn           = get_db()
+    total_members  = conn.execute("SELECT COUNT(*) FROM members").fetchone()[0]
+    total_plans    = conn.execute("SELECT COUNT(*) FROM membership_plans").fetchone()[0]
+    total_payments = conn.execute("SELECT COUNT(*) FROM payments").fetchone()[0]
+    rev_row        = conn.execute("SELECT SUM(amount) FROM payments WHERE payment_status='Paid'").fetchone()[0]
+    total_revenue  = rev_row if rev_row else 0.0
+    conn.close()
+
+    return render_template(
+        "admin_dashboard.html",
+        total_members  = total_members,
+        total_plans    = total_plans,
+        total_payments = total_payments,
+        total_revenue  = total_revenue
+    )
+
+# ==============================================================
+#  ADMIN — MEMBERSHIP PLAN MANAGEMENT (Mahima)
+# ==============================================================
+@app.route("/admin/plans")
+def admin_plans():
+    if admin_required():
+        return redirect("/admin/login")
+    conn  = get_db()
+    plans = conn.execute("SELECT * FROM membership_plans ORDER BY price").fetchall()
+    conn.close()
+    return render_template("admin_plans.html", plans=plans)
+
+
+@app.route("/admin/add_plan", methods=["GET", "POST"])
+def admin_add_plan():
+    if admin_required():
+        return redirect("/admin/login")
+
+    if request.method == "POST":
+        name     = request.form["plan_name"]
+        price    = float(request.form["price"])
+        duration = int(request.form["duration"])
+
+        conn = get_db()
+        conn.execute(
+            "INSERT INTO membership_plans (plan_name,price,duration_days) VALUES (?,?,?)",
+            (name, price, duration)
         )
         conn.commit()
         conn.close()
-        flash("Registration successful! Please login.", "success")
-        return redirect('/login')
-    return render_template('register.html')
+        flash(f"Plan '{name}' created successfully!", "success")
+        return redirect("/admin/plans")
 
-# ---------------- Login ----------------
-@app.route('/login', methods=['GET','POST'])
-def login():
-    if request.method == 'POST':
-        username = request.form['username']
-        password = request.form['password']
+    return render_template("add_plan.html")
 
-        conn = get_db_connection()
-        c = conn.cursor()
-        c.execute("SELECT * FROM members WHERE username=?", (username,))
-        member = c.fetchone()
+
+@app.route("/admin/edit_plan/<int:id>", methods=["GET", "POST"])
+def admin_edit_plan(id):
+    if admin_required():
+        return redirect("/admin/login")
+
+    conn = get_db()
+    plan = conn.execute("SELECT * FROM membership_plans WHERE id=?", (id,)).fetchone()
+
+    if not plan:
+        flash("Plan not found.", "danger")
         conn.close()
+        return redirect("/admin/plans")
 
-        if member and check_password_hash(member['password'], password):
-            session['member_id'] = member['id']
-            return redirect('/dashboard')
-        else:
-            flash("Invalid username or password!", "danger")
-            return redirect('/login')
-    return render_template('login.html')
-
-# ---------------- Dashboard ----------------
-@app.route('/dashboard')
-def dashboard():
-    if 'member_id' not in session:
-        return redirect('/login')
-    conn = get_db_connection()
-    c = conn.cursor()
-    c.execute("SELECT * FROM members WHERE id=?", (session['member_id'],))
-    member = c.fetchone()
-    conn.close()
-    return render_template('dashboard.html', member=member)
-
-# ---------------- Logout ----------------
-@app.route('/logout')
-def logout():
-    session.pop('member_id', None)
-    return redirect('/')
-
-# ---------------- Personal Profile ----------------
-@app.route('/profile', methods=['GET','POST'])
-def profile():
-    if 'member_id' not in session:
-        return redirect('/login')
-
-    conn = get_db_connection()
-    c = conn.cursor()
-
-    if request.method == 'POST':
-        name = request.form['name']
-        phone = request.form['phone']
-        age = request.form['age']
-        fitness_goal = request.form['fitness_goal']
-        c.execute("UPDATE members SET name=?, phone=?, age=?, fitness_goal=? WHERE id=?",
-                  (name, phone, age, fitness_goal, session['member_id']))
+    if request.method == "POST":
+        name     = request.form["plan_name"]
+        price    = float(request.form["price"])
+        duration = int(request.form["duration"])
+        conn.execute(
+            "UPDATE membership_plans SET plan_name=?,price=?,duration_days=? WHERE id=?",
+            (name, price, duration, id)
+        )
         conn.commit()
+        conn.close()
+        flash(f"Plan '{name}' updated successfully!", "success")
+        return redirect("/admin/plans")
 
-    c.execute("SELECT * FROM members WHERE id=?", (session['member_id'],))
-    member = c.fetchone()
     conn.close()
-    return render_template('profile.html', member=member)
+    return render_template("admin_edit_plan.html", plan=plan)
 
-# ---------------- Fitness Profile ----------------
-@app.route('/fitness', methods=['GET','POST'])
-def fitness():
-    if 'member_id' not in session:
-        return redirect('/login')
 
-    conn = get_db_connection()
-    c = conn.cursor()
+@app.route("/admin/delete_plan/<int:id>")
+def admin_delete_plan(id):
+    if admin_required():
+        return redirect("/admin/login")
 
-    if request.method == 'POST':
-        height = float(request.form['height'])
-        weight = float(request.form['weight'])
-        bmi = round(weight / (height/100)**2, 2) if height > 0 else 0
-        fitness_level = request.form['fitness_level']
-
-        c.execute("SELECT * FROM fitness_profile WHERE member_id=?", (session['member_id'],))
-        existing = c.fetchone()
-        if existing:
-            c.execute("UPDATE fitness_profile SET height=?, weight=?, bmi=?, fitness_level=? WHERE member_id=?",
-                      (height, weight, bmi, fitness_level, session['member_id']))
-        else:
-            c.execute("INSERT INTO fitness_profile (member_id, height, weight, bmi, fitness_level) VALUES (?,?,?,?,?)",
-                      (session['member_id'], height, weight, bmi, fitness_level))
+    conn = get_db()
+    plan = conn.execute("SELECT plan_name FROM membership_plans WHERE id=?", (id,)).fetchone()
+    if plan:
+        conn.execute("DELETE FROM membership_plans WHERE id=?", (id,))
         conn.commit()
-
-    c.execute("SELECT * FROM fitness_profile WHERE member_id=?", (session['member_id'],))
-    profile = c.fetchone()
-    conn.close()
-    return render_template('fitness.html', profile=profile)
-
-# ---------------- Membership Selection ----------------
-@app.route('/membership', methods=['GET','POST'])
-def membership():
-    if 'member_id' not in session:
-        return redirect('/login')
-
-    conn = get_db_connection()
-    c = conn.cursor()
-    c.execute("SELECT * FROM membership_plans")
-    plans = c.fetchall()
-
-    if request.method == 'POST':
-        selected_plan_id = request.form['plan_id']
-
-        # Save or update membership
-        c.execute("SELECT * FROM memberships WHERE member_id=?", (session['member_id'],))
-        existing = c.fetchone()
-
-        # Get duration of selected plan
-        c.execute("SELECT duration_days FROM membership_plans WHERE id=?", (selected_plan_id,))
-        duration = c.fetchone()['duration_days']
-
-        if existing:
-            c.execute("UPDATE memberships SET plan_id=?, start_date=date('now'), end_date=date('now','+{} days') WHERE member_id=?".format(duration),
-                      (selected_plan_id, session['member_id']))
-        else:
-            c.execute("INSERT INTO memberships (member_id, plan_id, start_date, end_date) VALUES (?,?,date('now'), date('now','+{} days'))".format(duration),
-                      (session['member_id'], selected_plan_id))
-        conn.commit()
-        flash("Membership plan selected successfully!", "success")
-        return redirect('/membership_status')
-
-    conn.close()
-    return render_template('membership.html', plans=plans)
-
-# ---------------- Membership Status ----------------
-@app.route('/membership_status')
-def membership_status():
-    if 'member_id' not in session:
-        return redirect('/login')
-
-    member_id = session['member_id']
-    conn = get_db_connection()
-    c = conn.cursor()
-    c.execute("""
-        SELECT m.*, p.plan_name, p.duration_days 
-        FROM memberships m
-        JOIN membership_plans p ON m.plan_id=p.id
-        WHERE m.member_id=?
-    """, (member_id,))
-    membership = c.fetchone()
-    conn.close()
-
-    if membership:
-        today = datetime.today().date()
-        end_date = datetime.strptime(membership['end_date'], "%Y-%m-%d").date()
-        remaining_days = (end_date - today).days
-        status = "Active" if remaining_days >= 0 else "Expired"
+        flash(f"Plan '{plan['plan_name']}' deleted.", "success")
     else:
-        membership = None
-        remaining_days = None
-        status = None
+        flash("Plan not found.", "danger")
+    conn.close()
+    return redirect("/admin/plans")
 
-    return render_template('membership_status.html', membership=membership, status=status, remaining_days=remaining_days)
-
-# ---------------- Run App ----------------
+# ==============================================================
+#  RUN
+# ==============================================================
 if __name__ == "__main__":
-    app.run(debug=True, port=8080)
+    app.run(debug=True, host='0.0.0.0', port=8080)

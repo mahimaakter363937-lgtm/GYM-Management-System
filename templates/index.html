@@ -1,15 +1,29 @@
-<!DOCTYPE html>
-<html>
-<head>
-    <title>Gym Management</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
-</head>
-<body>
-<div class="container">
-    <h1>Welcome to Gym Management System</h1>
-    <p style="text-align:center;">
-        <a href="/login">Login</a> | <a href="/register">Register</a>
-    </p>
+{% extends "base.html" %}
+{% block title %}3 Idiots Girl Gym - Premium Fitness{% endblock %}
+{% block content %}
+<div class="hero">
+  <h1>3 Idiots Girl Gym</h1>
+  <p>Your one-stop solution for fitness tracking and membership management.</p>
+  <div class="mt-3">
+    <a href="/login" class="btn btn-primary">Login Now</a>
+    <a href="/register" class="btn btn-outline">Register Member</a>
+  </div>
 </div>
-</body>
-</html>
+
+<div class="container mt-4">
+  <div class="stats-grid">
+    <a href="/register" class="stat-card" style="text-decoration: none; color: inherit; display: block;">
+      <h3>Modern Gear</h3>
+      <p>High quality equipment for all types of workouts.</p>
+    </a>
+    <a href="/register" class="stat-card" style="text-decoration: none; color: inherit; display: block;">
+      <h3>Expert Trainers</h3>
+      <p>Guidance from certified fitness professionals.</p>
+    </a>
+    <a href="/membership" class="stat-card" style="text-decoration: none; color: inherit; display: block;">
+      <h3>Easy Payments</h3>
+      <p>Seamless Stripe integration for all memberships.</p>
+    </a>
+  </div>
+</div>
+{% endblock %}

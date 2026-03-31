@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% block title %}Admin Login - Gym Management{% endblock %}
+{% block content %}
+<div class="auth-wrapper">
+  <div class="card auth-card">
+    <h2 class="text-center">Admin Access</h2>
+    <form method="POST">
+      <div class="form-group">
+        <label class="form-label">Admin Username</label>
+        <input type="text" name="username" class="form-control" value="admin" required>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Password</label>
+        <input type="password" name="password" class="form-control" value="admin123" required>
+      </div>
+      <button type="submit" class="btn btn-dark btn-full" style="background-color: var(--dark-color); color: white;">Admin Login</button>
+    </form>
+    <div class="text-center mt-3">
+      <p class="text-muted" style="font-size: 0.8rem;">
+        Default Credentials: <strong>admin</strong> / <strong>admin123</strong>
+      </p>
+    </div>
+  </div>
+</div>
+{% endblock %}

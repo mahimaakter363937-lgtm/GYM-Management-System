@@ -1,43 +1,52 @@
-<!DOCTYPE html>
-<html>
-
-<head>
-    <title>Fitness Profile</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
-</head>
-
-<body>
-    <div class="container">
-        <h2>Fitness Profile</h2>
-        <form method="POST">
-            <label>Height (ft)</label>
-            <input type="number" name="height" value="{{ profile['height'] if profile else '' }}" step="0.1"
-                placeholder="Height in feet">
-
-            <label>Weight (kg)</label>
-            <input type="number" name="weight" value="{{ profile['weight'] if profile else '' }}" step="0.1"
-                placeholder="Weight in kg">
-
-            <label>Fitness Level</label>
-            <input type="text" name="fitness_level" value="{{ profile['fitness_level'] if profile else '' }}"
-                placeholder="Beginner, Intermediate, Advanced">
-
-            <button type="submit">Save</button>
-        </form>
-        {% if profile %}
-        <div style="margin-top:20px; font-size:1.1em; background:#f0f8ff; padding:15px; border-radius:10px;">
-            <p><strong>Height:</strong> {{ profile['height'] }} ft</p>
-            <p><strong>Weight:</strong> {{ profile['weight'] }} kg</p>
-            <p><strong>BMI:</strong> {{ profile['bmi'] }}</p>
-            <p><strong>Fitness Level:</strong> {{ profile['fitness_level'] }}</p>
-            <p><strong>Diet Plan:</strong>
-                {% if profile['bmi'] < 18.5 %} High-calorie diet {% elif profile['bmi'] < 25 %} Balanced diet {% elif
-                    profile['bmi'] < 30 %} Low-calorie diet {% else %} Strict diet {% endif %} </p>
+{% extends "base.html" %}
+{% block title %}Fitness Profile - Gym Management{% endblock %}
+{% block content %}
+<div class="page-wrapper narrow">
+  <div class="card">
+    <h2>My Fitness Tracking</h2>
+    {% if profile %}
+      <div class="stats-grid mt-3">
+        <div class="stat-card">
+          <small class="text-muted">Height</small>
+          <div>{{ profile['height'] }} cm</div>
         </div>
-        {% endif %}
-        <!-- Back to Dashboard -->
-        <p style="margin-top:15px;">
-            <a href="/dashboard"
-                style="text-decoration:none; color:#fff; background-color:#4CAF50; padding:8px 12px; border-radius:5px;">Back
-                to Dashboard</a>
-        </p>
+        <div class="stat-card">
+          <small class="text-muted">Weight</small>
+          <div>{{ profile['weight'] }} kg</div>
+        </div>
+        <div class="stat-card">
+          <small class="text-muted">BMI</small>
+          <div style="font-weight: bold; color: var(--primary-color);">{{ profile['bmi'] }}</div>
+        </div>
+      </div>
+      <p class="text-center mt-2">Level: <span class="pill pill-warning">{{ profile['fitness_level'] }}</span></p>
+      <hr style="margin: 2rem 0; border: none; border-top: 1px solid var(--border-color);">
+    {% endif %}
+
+    <h3>Update Metrics</h3>
+    <form method="POST">
+      <div class="form-grid-2">
+        <div class="form-group">
+          <label class="form-label">Height (cm)</label>
+          <input type="number" step="0.1" name="height" class="form-control" value="{{ profile['height'] if profile else '' }}" required>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Weight (kg)</label>
+          <input type="number" step="0.1" name="weight" class="form-control" value="{{ profile['weight'] if profile else '' }}" required>
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Fitness Level</label>
+        <select name="fitness_level" class="form-control">
+          <option value="Beginner" {% if profile and profile['fitness_level'] == 'Beginner' %}selected{% endif %}>Beginner</option>
+          <option value="Intermediate" {% if profile and profile['fitness_level'] == 'Intermediate' %}selected{% endif %}>Intermediate</option>
+          <option value="Advanced" {% if profile and profile['fitness_level'] == 'Advanced' %}selected{% endif %}>Advanced</option>
+          <option value="Athlete" {% if profile and profile['fitness_level'] == 'Athlete' %}selected{% endif %}>Athlete</option>
+        </select>
+      </div>
+      <button type="submit" class="btn btn-primary btn-full">Save Metrics</button>
+      <a href="/dashboard" class="btn btn-outline btn-full mt-3" style="text-align: center;">Cancel</a>
+    </form>
+  </div>
+</div>
+{% endblock %}

@@ -1,22 +1,49 @@
-<!DOCTYPE html>
-<html>
-<head>
-    <title>Register</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
-</head>
-<body>
-<div class="container">
-    <h2>Create Your Account</h2>
+{% extends "base.html" %}
+{% block title %}Register - Gym Management{% endblock %}
+{% block content %}
+<div class="auth-wrapper">
+  <div class="card auth-card" style="max-width: 500px;">
+    <h2 class="text-center">3 Idiots Girl Gym</h2>
+    <p class="text-center text-muted mb-4">Register to start your fitness tracking.</p>
+
     <form method="POST">
-        <input type="text" name="name" placeholder="Full Name" required>
-        <input type="text" name="phone" placeholder="Phone Number">
-        <input type="number" name="age" placeholder="Age">
-        <input type="text" name="fitness_goal" placeholder="Fitness Goal">
-        <input type="text" name="username" placeholder="Username" required>
-        <input type="password" name="password" placeholder="Password" required>
-        <button type="submit">Register</button>
+      <div class="form-group">
+        <label class="form-label">Full Name</label>
+        <input type="text" name="name" class="form-control" placeholder="Jane Doe" required>
+      </div>
+      <div class="form-grid-2">
+        <div class="form-group">
+          <label class="form-label">Phone</label>
+          <input type="text" name="phone" class="form-control" placeholder="123-456">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Age</label>
+          <input type="number" name="age" class="form-control" placeholder="22">
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Fitness Goal</label>
+        <select name="fitness_goal" class="form-control">
+          <option value="Weight Loss">Weight Loss</option>
+          <option value="Muscle Gain">Muscle Gain</option>
+          <option value="Endurance">Endurance</option>
+          <option value="General Fitness">General Fitness</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Desired Username</label>
+        <input type="text" name="username" class="form-control" placeholder="janedoe" required>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Password</label>
+        <input type="password" name="password" class="form-control" placeholder="********" required>
+      </div>
+      <button type="submit" class="btn btn-primary btn-full">Register Account</button>
     </form>
-    <p style="text-align:center;">Already registered? <a href="/login">Login here</a></p>
+    
+    <div class="text-center mt-3">
+      <p>Already a member? <a href="/login">Login here</a></p>
+    </div>
+  </div>
 </div>
-</body>
-</html>
+{% endblock %}

@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+{% block title %}Membership Plans - Gym Management{% endblock %}
+{% block content %}
+<div class="page-wrapper">
+  <h2 class="text-center">Select Your Membership</h2>
+  <p class="text-center text-muted mb-4">Choose a plan that fits your schedule.</p>
+
+  <form method="POST">
+    <div class="stats-grid">
+      {% for plan in plans %}
+      <div class="card" style="margin-bottom: 0;">
+        <label style="cursor: pointer; display: block; height: 100%;">
+          <input type="radio" name="plan_id" value="{{ plan['id'] }}" required style="margin-bottom: 1rem;">
+          <h3 style="margin-top: 0;">{{ plan['plan_name'] }}</h3>
+          <p style="font-size: 1.5rem; font-weight: bold; color: var(--success-color);">${{ plan['price'] }}</p>
+          <p class="text-muted">{{ plan['duration_days'] }} Days Access</p>
+        </label>
+      </div>
+      {% endfor %}
+    </div>
+
+    <div class="text-center mt-4">
+      <button type="submit" class="btn btn-primary btn-full" style="max-width: 300px;">Continue to Checkout</button>
+      <div class="mt-3">
+        <a href="/dashboard" class="btn btn-outline">Back to Dashboard</a>
+      </div>
+    </div>
+  </form>
+</div>
+{% endblock %}

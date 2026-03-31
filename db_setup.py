@@ -1,67 +1,69 @@
 import sqlite3
+import os
 
-conn = sqlite3.connect('database.db')
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+DATABASE = os.path.join(BASE_DIR, "database.db")
+
+conn = sqlite3.connect(DATABASE)
 c = conn.cursor()
 
-# Create members table
-c.execute('''
+# Members
+c.execute("""
 CREATE TABLE IF NOT EXISTS members (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    name TEXT NOT NULL,
+    name TEXT,
     phone TEXT,
     age INTEGER,
     fitness_goal TEXT,
-    username TEXT UNIQUE NOT NULL,
-    password TEXT NOT NULL
+    username TEXT UNIQUE,
+    password TEXT
 )
-''')
+""")
 
-# Create fitness_profile table
-c.execute('''
+# Fitness profile
+c.execute("""
 CREATE TABLE IF NOT EXISTS fitness_profile (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    member_id INTEGER UNIQUE,
+    member_id INTEGER,
     height REAL,
     weight REAL,
     bmi REAL,
-    fitness_level TEXT,
-    FOREIGN KEY (member_id) REFERENCES members(id)
+    fitness_level TEXT
 )
-''')
+""")
 
-# Create membership_plans table
-c.execute('''
+# Membership plans
+c.execute("""
 CREATE TABLE IF NOT EXISTS membership_plans (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     plan_name TEXT,
-    duration_days INTEGER,
-    price REAL
+    price REAL,
+    duration_days INTEGER
 )
-''')
+""")
 
-# Insert default plans if not exists
-c.execute("SELECT COUNT(*) FROM membership_plans")
-if c.fetchone()[0] == 0:
-    plans = [
-        ('Monthly', 30, 50.0),
-        ('Quarterly', 90, 140.0),
-        ('Yearly', 365, 500.0)
-    ]
-    c.executemany("INSERT INTO membership_plans (plan_name, duration_days, price) VALUES (?,?,?)", plans)
-
-# Create memberships table
-c.execute('''
+# Memberships
+c.execute("""
 CREATE TABLE IF NOT EXISTS memberships (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    member_id INTEGER UNIQUE,
+    member_id INTEGER,
     plan_id INTEGER,
     start_date TEXT,
-    end_date TEXT,
-    FOREIGN KEY (member_id) REFERENCES members(id),
-    FOREIGN KEY (plan_id) REFERENCES membership_plans(id)
+    end_date TEXT
 )
-''')
+""")
+
+# Payments (MODULE 2)
+c.execute("""
+CREATE TABLE IF NOT EXISTS payments (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    member_id INTEGER,
+    plan_id INTEGER,
+    amount REAL,
+    payment_status TEXT,
+    payment_date TEXT
+)
+""")
 
 conn.commit()
 conn.close()
-print("Database setup completed successfully!")
