@@ -471,8 +471,12 @@ def admin_delete_plan(id):
     else:
         flash("Plan not found.", "danger")
     conn.close()
-    return redirect("/admin/plans")
-#  ADMIN — MEMBER MANAGEMENTS by (Richy)
+    return redirect("/admin/plans") 
+
+    
+#👍  ADMIN — MEMBER MANAGEMENTS by (Richy)
+
+
 @app.route("/admin/members")
 def admin_members():
     if admin_required():
