@@ -1,0 +1,62 @@
+# ==============================================================
+#  PROCESS STRIPE PAYMENT (Zadid)
+# ==============================================================
+@app.route("/process_payment", methods=["POST"])
+def process_payment():
+    if "member_id" not in session:
+        return redirect("/login")
+
+    plan_id = request.form.get("plan_id")
+    # We no longer need the stripeToken since we are allowing any card info
+    card_number = request.form.get("card_number")
+    cvc = request.form.get("cvc")
+
+    conn = get_db()
+    plan = conn.execute("SELECT * FROM membership_plans WHERE id=?", (plan_id,)).fetchone()
+
+    if not plan:
+        flash("Invalid plan selected.", "danger")
+        conn.close()
+        return redirect("/membership")
+
+    # ---------- Simulation: Always mark as Paid ----------
+    payment_status = "Paid"
+    
+    # In a real app involving Stripe, we would call Stripe API here.
+    
+    print(f"DEBUG: Processing simulated payment for Plan {plan_id} with Card {card_number}")
+
+    # ---------- Save payment record ----------
+    today    = datetime.now()
+    end_date = today + timedelta(days=plan["duration_days"])
+
+    conn.execute(
+        "INSERT INTO payments (member_id,plan_id,amount,payment_status,payment_date) VALUES (?,?,?,?,?)",
+        (session["member_id"], plan_id, plan["price"], payment_status, today.strftime("%Y-%m-%d"))
+    )
+
+    # Activate / update membership
+    existing = conn.execute(
+        "SELECT * FROM memberships WHERE member_id=?", (session["member_id"],)
+    ).fetchone()
+
+    if existing:
+        conn.execute(
+            "UPDATE memberships SET plan_id=?,start_date=?,end_date=? WHERE member_id=?",
+            (plan_id, today.strftime("%Y-%m-%d"), end_date.strftime("%Y-%m-%d"), session["member_id"])
+        )
+    else:
+        conn.execute(
+            "INSERT INTO memberships (member_id,plan_id,start_date,end_date) VALUES (?,?,?,?)",
+            (session["member_id"], plan_id, today.strftime("%Y-%m-%d"), end_date.strftime("%Y-%m-%d"))
+        )
+
+    conn.commit()
+    conn.close()
+
+    return render_template(
+        "payment_success.html",
+        plan_name = plan["plan_name"],
+        amount    = f"{plan['price']:.2f}",
+        date      = today.strftime("%B %d, %Y")
+    )
