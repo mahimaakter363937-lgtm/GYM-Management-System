@@ -1,0 +1,98 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="page-wrapper" style="padding: 30px;">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2>Daily Attendance</h2>
+        <h5 class="text-muted">Date: <span class="badge badge-dark">{{ today }}</span></h5>
+    </div>
+
+    <div class="card shadow-sm border-0" style="border-radius: 15px;">
+        <div class="card-body p-0">
+            <div class="p-3 bg-light">
+                <input type="text" id="memberSearch" class="form-control"
+                    placeholder="🔍 Search member by name or username..." style="border-radius: 20px;">
+            </div>
+
+            <form method="POST">
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0" id="attendanceTable">
+                        <thead style="background: #f187e9 !important;">
+                            <tr>
+                                <th class="text-center" style="width: 100px;">PRESENT</th>
+                                <th>MEMBER DETAILS</th>
+                                <th>USERNAME</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for m in members %}
+                            <tr>
+                                <td class="text-center">
+                                    <div class="custom-control custom-checkbox">
+                                        <input type="checkbox" name="present_members" value="{{ m.id }}"
+                                            class="custom-control-input" id="check{{ m.id }}" {% if m.id in present_ids
+                                            %}checked{% endif %}>
+                                        <label class="custom-control-label" for="check{{ m.id }}"></label>
+                                    </div>
+                                </td>
+                                <td>
+                                    <span class="font-weight-bold" style="color: #333;">{{ m.name }}</span>
+                                </td>
+                                <td class="text-muted">@{{ m.username }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                <div class="p-4 bg-white text-right shadow-sm">
+                    <button type="submit" class="btn btn-primary px-5"
+                        style="border-radius: 25px; background: #f06; border: none;">Save Changes</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div class="mt-5">
+        <h4 class="mb-3" style="color: #4a00e0;">Recent Attendance History</h4>
+        <div class="card border-0 shadow-sm" style="border-radius: 12px;">
+            <table class="table mb-0">
+                <thead class="bg-light">
+                    <tr>
+                        <th>Date</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for record in history %}
+                    <tr style="border-bottom: 1px solid #eee;">
+                        <td style="padding: 12px 20px; font-weight: 500;">{{ record.date }}</td>
+                        <td style="padding: 12px 20px;">
+                            <span
+                                style="background: #e1f7e7; color: #28a745; padding: 6px 15px; border-radius: 20px; font-weight: bold; font-size: 0.9em;">
+                                {{ record.total }} Members
+                            </span>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="2" style="text-align: center; padding: 30px; color: #999;">No attendance history
+                            found yet.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<script>
+    document.getElementById('memberSearch').addEventListener('keyup', function () {
+        let filter = this.value.toUpperCase();
+        let rows = document.querySelector("#attendanceTable tbody").rows;
+        for (let i = 0; i < rows.length; i++) {
+            let name = rows[i].cells[1].textContent.toUpperCase();
+            let user = rows[i].cells[2].textContent.toUpperCase();
+            rows[i].style.display = (name.includes(filter) || user.includes(filter)) ? "" : "none";
+        }
+    });
+</script>
+{% endblock %}
