@@ -573,6 +573,77 @@ def admin_delete_member(id):
         flash("Member not found.", "danger")
     conn.close()
     return redirect("/admin/members")
+
+
+
+# ==========================================
+# MODULE 3: RICHY'S FEATURES (Workout & Attendance)
+# ==========================================
+
+# 1. Workout Assignment Feature
+@app.route('/admin/assign_workout/<int:member_id>', methods=['GET', 'POST'])
+def admin_assign_workout(member_id):
+    if "admin" not in session:
+        return redirect('/admin/login')
+    
+    conn = get_db()
+    member = conn.execute('SELECT * FROM members WHERE id = ?', (member_id,)).fetchone()
+    profile = conn.execute('SELECT * FROM fitness_profile WHERE member_id = ?', (member_id,)).fetchone()
+    current_workout = conn.execute('SELECT * FROM workout_schedules WHERE member_id = ?', (member_id,)).fetchone()
+    
+    if request.method == 'POST':
+        workout_details = request.form['workout_details']
+        if current_workout:
+            conn.execute('UPDATE workout_schedules SET workout_details = ?, assigned_date = CURRENT_TIMESTAMP WHERE member_id = ?', (workout_details, member_id))
+        else:
+            conn.execute('INSERT INTO workout_schedules (member_id, workout_details) VALUES (?, ?)', (member_id, workout_details))
+        conn.commit()
+        conn.close()
+        flash('Workout schedule assigned successfully!', 'success')
+        return redirect('/admin/members')
+        
+    conn.close()
+    return render_template('admin_assign_workout.html', member=member, profile=profile, current_workout=current_workout)
+
+
+# 2. Attendance & History Feature
+@app.route('/admin/attendance', methods=['GET', 'POST'])
+def admin_attendance():
+    if "admin" not in session:
+        return redirect('/admin/login')
+        
+    conn = get_db()
+    today = date.today().strftime("%Y-%m-%d")
+    
+    if request.method == 'POST':
+        # আজকের ডাটা মুছে নতুন করে সেভ করবে
+        conn.execute('DELETE FROM attendance WHERE date = ?', (today,))
+        present_members = request.form.getlist('present_members')
+        
+        for member_id in present_members:
+            conn.execute('INSERT INTO attendance (member_id, date, status) VALUES (?, ?, ?)', (member_id, today, 'Present'))
+        
+        conn.commit()
+        flash('Attendance updated for today!', 'success')
+        return redirect('/admin/attendance')
+        
+    members = conn.execute('SELECT id, name, username FROM members').fetchall()
+    today_attendance = conn.execute('SELECT member_id FROM attendance WHERE date = ? AND status = "Present"', (today,)).fetchall()
+    present_ids = [row['member_id'] for row in today_attendance]
+    
+    # --- ATTENDANCE HISTORY QUERY ---
+    history = conn.execute('''
+        SELECT date, COUNT(member_id) as total 
+        FROM attendance 
+        GROUP BY date 
+        ORDER BY date DESC 
+        LIMIT 5
+    ''').fetchall()
+    
+    conn.close()
+    return render_template('admin_attendance.html', members=members, today=today, present_ids=present_ids, history=history)
+
+    
 # ==============================================================
 #  RUN
 # ==============================================================
