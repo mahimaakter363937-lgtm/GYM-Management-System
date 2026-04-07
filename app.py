@@ -616,7 +616,7 @@ def admin_attendance():
     today = date.today().strftime("%Y-%m-%d")
     
     if request.method == 'POST':
-        # আজকের ডাটা মুছে নতুন করে সেভ করবে
+    
         conn.execute('DELETE FROM attendance WHERE date = ?', (today,))
         present_members = request.form.getlist('present_members')
         
