@@ -8,14 +8,14 @@
   </div>
 
   <div class="table-container">
-    <table>
+    <table class="table table-hover">
       <thead>
         <tr>
           <th>ID</th>
           <th>Name</th>
           <th>Phone</th>
           <th>Username</th>
-          <th>Actions</th>
+          <th class="text-center">Actions</th>
         </tr>
       </thead>
       <tbody>
@@ -25,9 +25,27 @@
           <td>{{ m['name'] }}</td>
           <td>{{ m['phone'] }}</td>
           <td>{{ m['username'] }}</td>
-          <td>
-            <a href="/admin/edit_member/{{ m['id'] }}" class="btn btn-warning btn-sm">Edit</a>
-            <a href="/admin/delete_member/{{ m['id'] }}" class="btn btn-danger btn-sm" onclick="return confirm('Delete member?')">Delete</a>
+
+          <td style="display: flex; gap: 8px; justify-content: center;">
+
+            <a href="/admin/assign_workout/{{ m['id'] }}" class="btn btn-outline-primary btn-sm" title="Assign Workout">
+              🏋️ Workout
+            </a>
+
+            <a href="/admin/assign_diet/{{ m['id'] }}" class="btn btn-outline-success btn-sm" title="Assign Diet">
+              🥗 Diet
+            </a>
+
+         
+
+            <a href="/admin/edit_member/{{ m['id'] }}" class="btn btn-outline-warning btn-sm" title="Edit">
+              ✏️
+            </a>
+            <a href="/admin/delete_member/{{ m['id'] }}" class="btn btn-outline-danger btn-sm"
+              onclick="return confirm('Delete member?')" title="Delete">
+              🗑️
+            </a>
+
           </td>
         </tr>
         {% endfor %}
