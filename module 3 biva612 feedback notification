@@ -1,0 +1,90 @@
+app.route("/feedback", methods=["GET", "POST"])
+def submit_feedback():
+    if "member_id" not in session:
+        return redirect("/login")
+
+    if request.method == "POST":
+        subject = request.form["subject"].strip()
+        message = request.form["message"].strip()
+        if not subject or not message:
+            flash("Subject and message are required.", "danger")
+            return redirect("/feedback")
+        conn = get_db()
+        conn.execute(
+            "INSERT INTO feedback (member_id, subject, message) VALUES (?,?,?)",
+            (session["member_id"], subject, message)
+        )
+        conn.commit()
+        conn.close()
+        flash("Your feedback has been submitted successfully!", "success")
+        return redirect("/dashboard")
+
+    conn = get_db()
+    my_feedback = conn.execute(
+        "SELECT * FROM feedback WHERE member_id=? ORDER BY created_at DESC",
+        (session["member_id"],)
+    ).fetchall()
+    conn.close()
+    return render_template("feedback.html", my_feedback=my_feedback)
+
+
+# Admin: view all feedback
+@app.route("/admin/feedback")
+def admin_feedback():
+    if admin_required():
+        return redirect("/admin/login")
+    conn = get_db()
+    feedbacks = conn.execute("""
+        SELECT f.*, m.name as member_name
+        FROM feedback f
+        JOIN members m ON f.member_id = m.id
+        ORDER BY f.created_at DESC
+    """).fetchall()
+    conn.close()
+    return render_template("admin_feedback.html", feedbacks=feedbacks)
+
+
+# Admin: reply to feedback
+@app.route("/admin/feedback/reply/<int:id>", methods=["GET", "POST"])
+def admin_reply_feedback(id):
+    if admin_required():
+        return redirect("/admin/login")
+
+    conn = get_db()
+    fb = conn.execute("""
+        SELECT f.*, m.name as member_name
+        FROM feedback f
+        JOIN members m ON f.member_id = m.id
+        WHERE f.id=?
+    """, (id,)).fetchone()
+
+    if not fb:
+        flash("Feedback not found.", "danger")
+        conn.close()
+        return redirect("/admin/feedback")
+
+    if request.method == "POST":
+        reply = request.form["admin_reply"].strip()
+        conn.execute(
+            "UPDATE feedback SET admin_reply=?, status='Resolved' WHERE id=?",
+            (reply, id)
+        )
+
+        # ✅ Notify the member that admin replied to their feedback
+        notif_msg = (
+            f"💬 Admin replied to your feedback: \"{fb['subject']}\". "
+            f"Reply: \"{reply}\". Visit Feedback section to view the full response."
+        )
+        conn.execute(
+            "INSERT INTO notifications (member_id, message) VALUES (?,?)",
+            (fb["member_id"], notif_msg)
+        )
+
+        conn.commit()
+        conn.close()
+        flash("Reply sent successfully! Member has been notified.", "success")
+        return redirect("/admin/feedback")
+
+
+    conn.close()
+    return render_template("admin_reply_feedback.html", fb=fb)
