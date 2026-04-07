@@ -17,12 +17,16 @@
         <li><a href="/profile">Profile</a></li>
         <li><a href="/payment_history">History</a></li>
         <li><a href="/logout">Logout</a></li>
+      
       {% elif session.get('admin') %}
-        <li><a href="/admin">Admin Home</a></li>
-        <li><a href="/admin/members">Members</a></li>
-        <li><a href="/admin/plans">Plans</a></li>
-        <li><a href="/admin/payments">Payments</a></li>
-        <li><a href="/admin/logout">Logout</a></li>
+      <li><a href="/admin">Admin Home</a></li>
+      <li><a href="/admin/members">Members</a></li>
+      <li><a href="/admin/plans">Plans</a></li>
+      <li><a href="/admin/payments">Payments</a></li>
+      <li><a href="/admin/attendance">Attendance</a></li>
+      <li><a href="/admin/logout">Logout</a></li>
+
+      
       {% else %}
         <li><a href="/login">Login</a></li>
         <li><a href="/register">Register</a></li>
