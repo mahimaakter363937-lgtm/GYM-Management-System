@@ -65,5 +65,29 @@ CREATE TABLE IF NOT EXISTS payments (
 )
 """)
 
+# Notifications (MODULE 3 - Biva)
+c.execute("""
+CREATE TABLE IF NOT EXISTS notifications (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    member_id INTEGER NOT NULL,
+    message TEXT NOT NULL,
+    is_read INTEGER DEFAULT 0,
+    created_at TEXT DEFAULT CURRENT_TIMESTAMP
+)
+""")
+
+# Feedback / Complaints (MODULE 3 - Biva)
+c.execute("""
+CREATE TABLE IF NOT EXISTS feedback (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    member_id INTEGER NOT NULL,
+    subject TEXT NOT NULL,
+    message TEXT NOT NULL,
+    status TEXT DEFAULT 'Pending',
+    admin_reply TEXT,
+    created_at TEXT DEFAULT CURRENT_TIMESTAMP
+)
+""")
+
 conn.commit()
-conn.close()
+conn.close()
