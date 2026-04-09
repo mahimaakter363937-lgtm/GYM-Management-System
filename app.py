@@ -631,6 +631,55 @@ def admin_assign_workout():
     conn.close()
     return render_template('admin_attendance.html', members=members, today=today, present_ids=present_ids, history=history)
 
+
+from datetime import date
+
+@app.route('/admin/attendance', methods=['GET', 'POST'])
+def admin_attendance():
+    if not session.get('admin'):
+        return redirect('/admin/login')
+    
+    db = get_db()
+    
+    today = date.today().isoformat() 
+    
+    if request.method == 'POST':
+
+        db.execute('DELETE FROM attendance WHERE date = ?', (today,))
+        
+        members_list = db.execute('SELECT id FROM members').fetchall()
+        
+        for m in members_list:
+            status = request.form.get(f'status_{m["id"]}')
+            if status == 'Present':
+                db.execute('INSERT INTO attendance (member_id, status, date) VALUES (?, ?, ?)',
+                           (m['id'], 'Present', today))
+        
+        db.commit()
+        flash(f'Attendance successfully updated for {today}!', 'success')
+        return redirect('/admin/attendance')
+
+    members = db.execute('SELECT id, name, phone FROM members').fetchall()
+    
+    today_attendance = db.execute('SELECT member_id FROM attendance WHERE date = ? AND status = "Present"', (today,)).fetchall()
+    present_ids = [row['member_id'] for row in today_attendance]
+    
+    
+    history = db.execute('''
+        SELECT date, COUNT(member_id) as total_present 
+        FROM attendance 
+        WHERE status = 'Present'
+        GROUP BY date 
+        ORDER BY date DESC 
+        LIMIT 5
+    ''').fetchall()
+    
+    return render_template('admin_attendance.html', 
+                           members=members, 
+                           today_date=today, 
+                           present_ids=present_ids, 
+                           history=history)
+
     
 # ==============================================================
 #  RUN
