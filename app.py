@@ -581,56 +581,44 @@ def admin_delete_member(id):
 # ==========================================
 
 # 1. Workout Assignment Feature
-@app.route('/admin/assign_workout/<int:member_id>', methods=['GET', 'POST'])
-def admin_assign_workout(member_id):
-    if "admin" not in session:
+@app.route('/admin/assign_workout', methods=['GET', 'POST'])
+def admin_assign_workout():
+    if not session.get('admin'):
         return redirect('/admin/login')
     
-    conn = get_db()
-    member = conn.execute('SELECT * FROM members WHERE id = ?', (member_id,)).fetchone()
-    profile = conn.execute('SELECT * FROM fitness_profile WHERE member_id = ?', (member_id,)).fetchone()
-    current_workout = conn.execute('SELECT * FROM workout_schedules WHERE member_id = ?', (member_id,)).fetchone()
+    db = get_db()
     
     if request.method == 'POST':
-        workout_details = request.form['workout_details']
-        if current_workout:
-            conn.execute('UPDATE workout_schedules SET workout_details = ?, assigned_date = CURRENT_TIMESTAMP WHERE member_id = ?', (workout_details, member_id))
-        else:
-            conn.execute('INSERT INTO workout_schedules (member_id, workout_details) VALUES (?, ?)', (member_id, workout_details))
-        conn.commit()
-        conn.close()
-        flash('Workout schedule assigned successfully!', 'success')
-        return redirect('/admin/members')
+        member_id = request.form.get('member_id')
+        workout_type = request.form.get('workout_type')
+        schedule_details = request.form.get('schedule_details')
         
-    conn.close()
-    return render_template('admin_assign_workout.html', member=member, profile=profile, current_workout=current_workout)
+        db.execute('INSERT INTO workouts (member_id, workout_type, schedule_details) VALUES (?, ?, ?)',
+                   (member_id, workout_type, schedule_details))
+        db.commit()
+        flash('Workout assigned successfully!', 'success')
+        return redirect('/admin/assign_workout')
 
+    # আপডেট করা কুয়েরি: m.fitness_goal ব্যবহার করা হয়েছে (fp.fitness_goal এর বদলে)
+    members = db.execute('''
+        SELECT 
+            m.id, 
+            m.name, 
+            COALESCE(m.fitness_goal, 'General') as goal,
+            COALESCE(fp.fitness_level, 'Beginner') as level
+        FROM members m
+        LEFT JOIN fitness_profile fp ON m.id = fp.member_id
+        ORDER BY m.name ASC
+    ''').fetchall()
 
-# 2. Attendance & History Feature
-@app.route('/admin/attendance', methods=['GET', 'POST'])
-def admin_attendance():
-    if "admin" not in session:
-        return redirect('/admin/login')
-        
-    conn = get_db()
-    today = date.today().strftime("%Y-%m-%d")
-    
-    if request.method == 'POST':
-    
-        conn.execute('DELETE FROM attendance WHERE date = ?', (today,))
-        present_members = request.form.getlist('present_members')
-        
-        for member_id in present_members:
-            conn.execute('INSERT INTO attendance (member_id, date, status) VALUES (?, ?, ?)', (member_id, today, 'Present'))
-        
-        conn.commit()
-        flash('Attendance updated for today!', 'success')
-        return redirect('/admin/attendance')
-        
-    members = conn.execute('SELECT id, name, username FROM members').fetchall()
-    today_attendance = conn.execute('SELECT member_id FROM attendance WHERE date = ? AND status = "Present"', (today,)).fetchall()
-    present_ids = [row['member_id'] for row in today_attendance]
-    
+    workouts = db.execute('''
+        SELECT w.*, m.name as member_name 
+        FROM workouts w 
+        JOIN members m ON w.member_id = m.id
+        ORDER BY w.id DESC
+    ''').fetchall()
+
+    return render_template('admin_assign_workout.html', members=members, workouts=workouts)
     # --- ATTENDANCE HISTORY QUERY ---
     history = conn.execute('''
         SELECT date, COUNT(member_id) as total 
