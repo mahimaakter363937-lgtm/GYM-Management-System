@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -7,42 +8,45 @@
   <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
   {% block head %}{% endblock %}
 </head>
+
 <body>
 
   <nav class="navbar">
     <a href="/" class="navbar-brand">3 Idiots Girl Gym</a>
     <ul class="navbar-nav">
       {% if session.get('member_id') %}
-        <li><a href="/dashboard">Dashboard</a></li>
-        <li><a href="/profile">Profile</a></li>
-        <li><a href="/payment_history">History</a></li>
-        <li><a href="/logout">Logout</a></li>
-      
+      <li><a href="/dashboard">Dashboard</a></li>
+      <li><a href="/my_diet">My Diet</a></li>
+      <li><a href="/profile">Profile</a></li>
+      <li><a href="/payment_history">History</a></li>
+      <li><a href="/logout">Logout</a></li>
       {% elif session.get('admin') %}
       <li><a href="/admin">Admin Home</a></li>
       <li><a href="/admin/members">Members</a></li>
-      <li><a href="/admin/plans">Plans</a></li>
-      <li><a href="/admin/payments">Payments</a></li>
       <li><a href="/admin/attendance">Attendance</a></li>
+      <li><a href="/admin/plans">Plans</a></li>
+      <li><a href="/admin/diet_plans">Diet Plans</a></li>
+      <li><a href="/admin/assign_diet">Assign Diet</a></li>
+      <li><a href="/admin/assign_workout">Assign Workout</a></li>
+      <li><a href="/admin/payments">Payments</a></li>
+      <li><a href="/admin/feedback">Feedback</a></li>
       <li><a href="/admin/logout">Logout</a></li>
-
-      
       {% else %}
-        <li><a href="/login">Login</a></li>
-        <li><a href="/register">Register</a></li>
+      <li><a href="/login">Login</a></li>
+      <li><a href="/register">Register</a></li>
       {% endif %}
     </ul>
   </nav>
 
   <div class="container">
     {% with messages = get_flashed_messages(with_categories=true) %}
-      {% if messages %}
-        <div class="flash-container">
-          {% for category, message in messages %}
-            <div class="flash flash-{{ category }}">{{ message }}</div>
-          {% endfor %}
-        </div>
-      {% endif %}
+    {% if messages %}
+    <div class="flash-container">
+      {% for category, message in messages %}
+      <div class="flash flash-{{ category }}">{{ message }}</div>
+      {% endfor %}
+    </div>
+    {% endif %}
     {% endwith %}
 
     {% block content %}{% endblock %}
@@ -53,4 +57,5 @@
   </footer>
 
 </body>
+
 </html>
