@@ -599,7 +599,7 @@ def admin_assign_workout():
         flash('Workout assigned successfully!', 'success')
         return redirect('/admin/assign_workout')
 
-    # আপডেট করা কুয়েরি: m.fitness_goal ব্যবহার করা হয়েছে (fp.fitness_goal এর বদলে)
+    
     members = db.execute('''
         SELECT 
             m.id, 
