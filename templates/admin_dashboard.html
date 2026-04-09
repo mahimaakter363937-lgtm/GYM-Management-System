@@ -1,53 +1,193 @@
 {% extends "base.html" %}
-{% block title %}Admin Dashboard - Gym Management{% endblock %}
+{% block title %}Admin Dashboard - 3 Idiots Girl Gym{% endblock %}
 {% block content %}
 <div class="page-wrapper">
-  <div style="display: flex; justify-content: space-between; align-items: center;">
-    <h1>Admin Panel</h1>
+
+  <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1.5rem;">
+    <h1>👑 Admin Panel</h1>
     <span class="pill pill-warning">Administrator Mode</span>
   </div>
-  
-  <div class="stats-grid mt-3">
-    <a href="/admin/members" class="stat-card" style="text-decoration: none; color: inherit; display: block;">
+
+  <!-- MAIN STATS ROW -->
+  <div class="stats-grid"
+    style="grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap:1.25rem; margin-bottom:2rem;">
+    <a href="/admin/members" class="stat-card"
+      style="text-decoration:none; color:inherit; display:block; border-top:4px solid var(--primary-color);">
       <div class="nav-icon">👥</div>
-      <div class="stat-value" style="font-size: 1.5rem; font-weight: bold;">{{ total_members }}</div>
-      <div class="stat-label">Members</div>
+      <div style="font-size:2rem; font-weight:bold;">{{ total_members }}</div>
+      <div class="text-muted" style="font-size:0.9rem;">Total Members</div>
     </a>
-    <a href="/admin/plans" class="stat-card" style="text-decoration: none; color: inherit; display: block;">
+    <a href="/admin/plans" class="stat-card"
+      style="text-decoration:none; color:inherit; display:block; border-top:4px solid var(--secondary-color);">
       <div class="nav-icon">📋</div>
-      <div class="stat-value" style="font-size: 1.5rem; font-weight: bold;">{{ total_plans }}</div>
-      <div class="stat-label">Plans</div>
+      <div style="font-size:2rem; font-weight:bold;">{{ total_plans }}</div>
+      <div class="text-muted" style="font-size:0.9rem;">Active Plans</div>
     </a>
-    <a href="/admin/payments" class="stat-card" style="text-decoration: none; color: inherit; display: block;">
+    <a href="/admin/payments" class="stat-card"
+      style="text-decoration:none; color:inherit; display:block; border-top:4px solid var(--success-color);">
       <div class="nav-icon">💰</div>
-      <div class="stat-value" style="font-size: 1.5rem; font-weight: bold;">${{ total_revenue }}</div>
-      <div class="stat-label">Revenue</div>
+      <div style="font-size:2rem; font-weight:bold;">${{ "%.2f"|format(total_revenue) }}</div>
+      <div class="text-muted" style="font-size:0.9rem;">Total Revenue</div>
     </a>
-    <a href="/admin/payments" class="stat-card" style="text-decoration: none; color: inherit; display: block;">
+    <a href="/admin/payments" class="stat-card"
+      style="text-decoration:none; color:inherit; display:block; border-top:4px solid var(--info-color);">
       <div class="nav-icon">💳</div>
-      <div class="stat-value" style="font-size: 1.5rem; font-weight: bold;">{{ total_payments }}</div>
-      <div class="stat-label">Payments</div>
+      <div style="font-size:2rem; font-weight:bold;">{{ total_payments }}</div>
+      <div class="text-muted" style="font-size:0.9rem;">All Payments</div>
+    </a>
+    <a href="/admin/payments" class="stat-card"
+      style="text-decoration:none; color:inherit; display:block; border-top:4px solid var(--warning-color);">
+      <div class="nav-icon">⏳</div>
+      <div style="font-size:2rem; font-weight:bold;">{{ pending_payments }}</div>
+      <div class="text-muted" style="font-size:0.9rem;">Pending Payments</div>
+    </a>
+    <a href="/admin/diet_plans" class="stat-card"
+      style="text-decoration:none; color:inherit; display:block; border-top:4px solid var(--primary-color);">
+      <div class="nav-icon">🥗</div>
+      <div style="font-size:2rem; font-weight:bold;">{{ total_diet_plans }}</div>
+      <div class="text-muted" style="font-size:0.9rem;">Diet Plans</div>
+    </a>
+    <a href="/admin/feedback" class="stat-card"
+      style="text-decoration:none; color:inherit; display:block; border-top:4px solid var(--danger-color);">
+      <div class="nav-icon">💬</div>
+      <div style="font-size:2rem; font-weight:bold;">{{ pending_feedback }}</div>
+      <div class="text-muted" style="font-size:0.9rem;">Pending Feedback</div>
     </a>
   </div>
 
-  <div class="nav-grid">
+  <!-- QUICK ACTION CARDS -->
+  <h3 style="margin-bottom:1rem;">⚡ Quick Actions</h3>
+  <div class="nav-grid"
+    style="grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap:1rem; margin-bottom:2rem;">
     <a href="/admin/members" class="nav-card">
       <div class="nav-icon">👥</div>
       <div class="nav-label">Manage Members</div>
     </a>
+    <a href="/admin/add_member" class="nav-card">
+      <div class="nav-icon">➕</div>
+      <div class="nav-label">Add Member</div>
+    </a>
+
+    <a href="/admin/attendance" class="nav-card" style="border-top: 3px solid #007bff;">
+      <div class="nav-icon">📅</div>
+      <div class="nav-label">Daily Attendance</div>
+    </a>
+
+    <a href="/admin/assign_workout" class="nav-card" style="border-top: 3px solid #17a2b8;">
+      <div class="nav-icon">🏋️‍♂️</div>
+      <div class="nav-label">Assign Workout</div>
+    </a>
+
     <a href="/admin/plans" class="nav-card">
       <div class="nav-icon">📋</div>
       <div class="nav-label">Manage Plans</div>
     </a>
-    <a href="/admin/payments" class="nav-card">
-      <div class="nav-icon">💳</div>
-      <div class="nav-label">View Payments</div>
-  
+    <a href="/admin/diet_plans" class="nav-card">
+      <div class="nav-icon">🥗</div>
+      <div class="nav-label">Diet Plans</div>
     </a>
-    <a href="/admin/attendance" class="nav-card">
-      <div class="nav-icon">📅</div>
-      <div class="nav-label">Daily Attendance</div>
+    <a href="/admin/assign_diet" class="nav-card">
+      <div class="nav-icon">🤝</div>
+      <div class="nav-label">Assign Diet</div>
+    </a>
+    <a href="/admin/feedback" class="nav-card"
+      style="{% if pending_feedback > 0 %}border:2px solid var(--danger-color);{% endif %}">
+      <div class="nav-icon">💬</div>
+      <div class="nav-label">View Feedback</div>
+      {% if pending_feedback > 0 %}
+      <span class="pill pill-danger" style="margin-top:0.5rem; font-size:0.75rem;">{{ pending_feedback }} New</span>
+      {% endif %}
     </a>
   </div>
+
+  <!-- RECENT FEEDBACK SECTION -->
+  <h3 style="margin-bottom:1rem;">📬 Recent Member Feedback</h3>
+  {% if recent_feedback %}
+  <div class="table-container" style="margin-bottom:2rem;">
+    <table>
+      <thead>
+        <tr>
+          <th>Member</th>
+          <th>Subject</th>
+          <th>Date</th>
+          <th>Status</th>
+          <th>Action</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for fb in recent_feedback %}
+        <tr>
+          <td style="font-weight:600;">{{ fb['member_name'] }}</td>
+          <td>{{ fb['subject'] }}</td>
+          <td class="text-muted">{{ fb['created_at'][:10] }}</td>
+          <td>
+            {% if fb['status'] == 'Resolved' %}
+            <span class="pill pill-success">Resolved</span>
+            {% else %}
+            <span class="pill pill-warning">Pending</span>
+            {% endif %}
+          </td>
+          <td>
+            <a href="/admin/feedback/reply/{{ fb['id'] }}" class="btn btn-primary"
+              style="font-size:0.8rem; padding:0.35rem 0.8rem;">Reply</a>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% if total_feedback > 5 %}
+  <div style="margin-bottom:2rem;">
+    <a href="/admin/feedback" class="btn btn-outline">View All {{ total_feedback }} Feedback →</a>
+  </div>
+  {% endif %}
+  {% else %}
+  <div class="card text-center" style="padding:2rem; margin-bottom:2rem;">
+    <p class="text-muted">📭 No member feedback submitted yet.</p>
+  </div>
+  {% endif %}
+
+  <!-- RECENT PAYMENTS SECTION -->
+  <h3 style="margin-bottom:1rem;">💳 Recent Payments</h3>
+  {% if recent_payments %}
+  <div class="table-container">
+    <table>
+      <thead>
+        <tr>
+          <th>Member</th>
+          <th>Plan</th>
+          <th>Amount</th>
+          <th>Status</th>
+          <th>Date</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for p in recent_payments %}
+        <tr>
+          <td style="font-weight:600;">{{ p['member_name'] }}</td>
+          <td>{{ p['plan_name'] }}</td>
+          <td>${{ "%.2f"|format(p['amount']) }}</td>
+          <td>
+            {% if p['payment_status'] == 'Paid' %}
+            <span class="pill pill-success">Paid</span>
+            {% else %}
+            <span class="pill pill-warning">{{ p['payment_status'] }}</span>
+            {% endif %}
+          </td>
+          <td class="text-muted">{{ p['payment_date'] }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  <div style="margin-top:1rem;">
+    <a href="/admin/payments" class="btn btn-outline">View All Payments →</a>
+  </div>
+  {% else %}
+  <div class="card text-center" style="padding:2rem;">
+    <p class="text-muted">💳 No payment records yet.</p>
+  </div>
+  {% endif %}
+
 </div>
 {% endblock %}
