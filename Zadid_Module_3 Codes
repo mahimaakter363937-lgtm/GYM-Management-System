@@ -1,0 +1,194 @@
+In app.py i have changed and implement the below codes.
+
+# ==============================================================
+#  FITNESS PROFILE (Updated By Zadid)
+# ==============================================================
+@app.route("/fitness", methods=["GET", "POST"])
+def fitness():
+    if "member_id" not in session:
+        return redirect("/login")
+
+    conn = get_db()
+
+    if request.method == "POST":
+        height        = float(request.form["height"])
+        weight        = float(request.form["weight"])
+        fitness_level = request.form["fitness_level"]
+
+        bmi = round(weight / ((height / 100) ** 2), 2) if height > 0 else 0
+
+        # 🔹 Update or insert fitness profile
+        existing = conn.execute(
+            "SELECT * FROM fitness_profile WHERE member_id=?", 
+            (session["member_id"],)
+        ).fetchone()
+
+        if existing:
+            conn.execute(
+                "UPDATE fitness_profile SET height=?,weight=?,bmi=?,fitness_level=? WHERE member_id=?",
+                (height, weight, bmi, fitness_level, session["member_id"])
+            )
+        else:
+            conn.execute(
+                "INSERT INTO fitness_profile (member_id,height,weight,bmi,fitness_level) VALUES (?,?,?,?,?)",
+                (session["member_id"], height, weight, bmi, fitness_level)
+            )
+
+        # 🔥 NEW: Save progress history
+        from datetime import datetime
+        conn.execute(
+            "INSERT INTO progress (member_id, weight, bmi, date) VALUES (?, ?, ?, ?)",
+            (
+                session["member_id"],
+                weight,
+                bmi,
+                datetime.now().strftime("%Y-%m-%d")
+            )
+        )
+
+        conn.commit()
+        flash("Fitness metrics updated!", "success")
+
+    profile = conn.execute(
+        "SELECT * FROM fitness_profile WHERE member_id=?", 
+        (session["member_id"],)
+    ).fetchone()
+
+    conn.close()
+
+    return render_template("fitness.html", profile=profile)
+
+
+# ==============================================================
+#  Fitness Progress (Zadid)
+# ==============================================================
+@app.route("/my_fitness")
+def my_fitness():
+    if "member_id" not in session:
+        return redirect("/login")
+
+    conn = get_db()
+
+    # 🔹 Current fitness
+    fitness = conn.execute(
+        "SELECT * FROM fitness_profile WHERE member_id=?",
+        (session["member_id"],)
+    ).fetchone()
+
+    # 🔥 NEW: Progress history
+    progress = conn.execute(
+        "SELECT * FROM progress WHERE member_id=? ORDER BY date",
+        (session["member_id"],)
+    ).fetchall()
+
+    conn.close()
+
+    return render_template(
+        "my_fitness.html",
+        fitness=fitness,
+        progress=progress
+    )
+
+# ==============================================================
+#  My Diet (Zadid)
+# ==============================================================
+@app.route("/my_diet")
+def my_diet():
+    if "member_id" not in session:
+        return redirect("/login")
+    
+    conn = get_db()
+    diet = conn.execute("""
+        SELECT dp.* 
+        FROM diet_plans dp
+        JOIN member_diet_plans mdp ON dp.id = mdp.diet_plan_id
+        WHERE mdp.member_id = ?
+    """, (session["member_id"],)).fetchone()
+    conn.close()
+    return render_template("my_diet.html", diet=diet)
+
+# =============================================================
+# my_diet.html
+# =============================================================
+{% extends "base.html" %}
+{% block title %}My Diet Plan - Gym Management{% endblock %}
+{% block content %}
+<div class="page-wrapper">
+  <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1.5rem;">
+    <h1>🥗 My Diet Plan</h1>
+    <span class="pill pill-success">Goal: {{ diet['fitness_goal'] if diet else 'Not Assigned' }}</span>
+  </div>
+
+  {% if diet %}
+  <div class="card" style="border-top: 4px solid var(--primary-color);">
+    <h3 style="color:var(--primary-color); display:flex; align-items:center; gap:0.5rem;">
+      <span>🥣</span> {{ diet['name'] }}
+    </h3>
+    <hr style="border:0; border-top:1px solid var(--card-border); margin:1.5rem 0;">
+    
+    <div style="white-space: pre-wrap; font-size:1.1rem; line-height:1.8; color:var(--text-main); background-color:rgba(0,0,0,0.02); padding:2rem; border-radius:12px; border:1px solid var(--card-border);">{{ diet['description'] }}</div>
+    
+    <div class="mt-4 text-center">
+      <p class="text-muted">Follow this plan for best results! 💪</p>
+    </div>
+  </div>
+  {% else %}
+  <div class="card text-center" style="padding:4rem;">
+    <div class="nav-icon" style="font-size:4rem;">🥗</div>
+    <h2 class="mt-3">Diet Plan Not Assigned</h2>
+    <p class="text-muted" style="font-size:1.1rem; max-width:600px; margin:1rem auto;">Your personalized diet plan has not been assigned yet. Please contact the admin or your trainer to get your diet plan updated!</p>
+    <a href="/dashboard" class="btn btn-primary mt-4">Back to Dashboard</a>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}
+
+# =================================================
+# my_fitness.html
+# =================================================
+{% extends "base.html" %}
+{% block title %}My Fitness{% endblock %}
+{% block content %}
+
+<div class="page-wrapper">
+  <h1>📊 My Fitness Progress</h1>
+
+  <div class="card" style="border-top: 4px solid #ff4d6d;">
+    {% if fitness %}
+      <p><strong>Height:</strong> {{ fitness.height }} cm</p>
+      <p><strong>Weight:</strong> {{ fitness.weight }} kg</p>
+      <p><strong>BMI:</strong> {{ fitness.bmi }}</p>
+      <p><strong>Level:</strong> {{ fitness.fitness_level }}</p>
+    {% else %}
+      <p>No fitness data available.</p>
+    {% endif %}
+  </div>
+</div>
+
+{% endblock %}
+
+# =================================================
+# my_workouts.html
+# =================================================
+
+{% extends "base.html" %}
+{% block title %}My Workouts{% endblock %}
+{% block content %}
+
+<div class="page-wrapper">
+  <h1>🏃 My Workout Schedule</h1>
+
+  <div class="card" style="border-top: 4px solid #4CAF50;">
+    {% for w in workouts %}
+      <div style="margin-bottom: 15px;">
+        <h4>{{ w.workout_type }}</h4>
+        <p>{{ w.schedule_details }}</p>
+      </div>
+      <hr>
+    {% else %}
+      <p>No workouts assigned.</p>
+    {% endfor %}
+  </div>
+</div>
+
+{% endblock %}
