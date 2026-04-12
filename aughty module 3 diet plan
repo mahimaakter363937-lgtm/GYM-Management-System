@@ -1,0 +1,87 @@
+@app.route("/my_diet")
+def my_diet():
+    if "member_id" not in session:
+        return redirect("/login")
+    
+    conn = get_db()
+    diet = conn.execute("""
+        SELECT dp.* 
+        FROM diet_plans dp
+        JOIN member_diet_plans mdp ON dp.id = mdp.diet_plan_id
+        WHERE mdp.member_id = ?
+    """, (session["member_id"],)).fetchone()
+    conn.close()
+    return render_template("my_diet.html", diet=diet)
+
+@app.route("/admin/diet_plans")
+def admin_diet_plans():
+    if admin_required():
+        return redirect("/admin/login")
+    conn = get_db()
+    plans = conn.execute("SELECT * FROM diet_plans ORDER BY name").fetchall()
+    conn.close()
+    return render_template("admin_diet_plans.html", plans=plans)
+
+@app.route("/admin/add_diet_plan", methods=["GET", "POST"])
+def admin_add_diet_plan():
+    if admin_required():
+        return redirect("/admin/login")
+    
+    if request.method == "POST":
+        name = request.form["name"]
+        description = request.form["description"]
+        fitness_goal = request.form["fitness_goal"]
+        
+        conn = get_db()
+        conn.execute(
+            "INSERT INTO diet_plans (name, description, fitness_goal) VALUES (?,?,?)",
+            (name, description, fitness_goal)
+        )
+        conn.commit()
+        conn.close()
+        flash(f"Diet plan '{name}' created!", "success")
+        return redirect("/admin/diet_plans")
+    
+    return render_template("admin_add_diet_plan.html")
+
+@app.route("/admin/edit_diet_plan/<int:id>", methods=["GET", "POST"])
+def admin_edit_diet_plan(id):
+    if admin_required():
+        return redirect("/admin/login")
+    
+    conn = get_db()
+    plan = conn.execute("SELECT * FROM diet_plans WHERE id=?", (id,)).fetchone()
+    
+    if not plan:
+        flash("Diet plan not found.", "danger")
+        conn.close()
+        return redirect("/admin/diet_plans")
+
+    if request.method == "POST":
+        name = request.form["name"]
+        description = request.form["description"]
+        fitness_goal = request.form["fitness_goal"]
+        
+        conn.execute(
+            "UPDATE diet_plans SET name=?, description=?, fitness_goal=? WHERE id=?",
+            (name, description, fitness_goal, id)
+        )
+        conn.commit()
+        conn.close()
+        flash(f"Diet plan '{name}' updated!", "success")
+        return redirect("/admin/diet_plans")
+    
+    conn.close()
+    return render_template("admin_add_diet_plan.html", plan=plan)
+
+@app.route("/admin/delete_diet_plan/<int:id>")
+def admin_delete_diet_plan(id):
+    if admin_required():
+        return redirect("/admin/login")
+    conn = get_db()
+    conn.execute("DELETE FROM diet_plans WHERE id=?", (id,))
+    conn.execute("DELETE FROM member_diet_plans WHERE diet_plan_id=?", (id,))
+    conn.commit()
+    conn.close()
+    flash("Diet plan deleted.", "success")
+    return redirect("/admin/diet_plans")
