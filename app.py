@@ -476,12 +476,11 @@ def admin_delete_plan(id):
     
 #👍  ADMIN — MEMBER MANAGEMENTS by (Richy)
 
-
 @app.route("/admin/members")
 def admin_members():
     if admin_required():
         return redirect("/admin/login")
-    conn    = get_db()
+    conn = get_db()
     members = conn.execute("SELECT * FROM members ORDER BY name").fetchall()
     conn.close()
     return render_template("admin_members.html", members=members)
@@ -493,13 +492,20 @@ def admin_add_member():
         return redirect("/admin/login")
 
     if request.method == "POST":
-        name         = request.form["name"]
-        phone        = request.form["phone"]
-        age          = request.form["age"]
-        fitness_goal = request.form["fitness_goal"]
-        username     = request.form["username"]
-        password     = generate_password_hash(request.form["password"])
+        # .strip() ব্যবহার করা হয়েছে যাতে শুধু স্পেস দিয়ে কেউ ফর্ম পূরণ করতে না পারে
+        name = request.form.get("name", "").strip()
+        phone = request.form.get("phone", "").strip()
+        age = request.form.get("age", "").strip()
+        fitness_goal = request.form.get("fitness_goal", "")
+        username = request.form.get("username", "").strip()
+        password_raw = request.form.get("password", "").strip()
 
+        # 🔹 ব্যাকএন্ড ভ্যালিডেশন: নাম, ইউজারনেম এবং পাসওয়ার্ড খালি আছে কিনা চেক
+        if not name or not username or not password_raw:
+            flash("Required fields (Name, Username, Password) cannot be empty!", "danger")
+            return redirect("/admin/add_member")
+
+        password = generate_password_hash(password_raw)
         conn = get_db()
         try:
             conn.execute(
@@ -515,6 +521,73 @@ def admin_add_member():
             conn.close()
 
     return render_template("admin_add_member.html")
+
+
+@app.route("/admin/edit_member/<int:id>", methods=["GET", "POST"])
+def admin_edit_member(id):
+    if admin_required():
+        return redirect("/admin/login")
+
+    conn = get_db()
+    member = conn.execute("SELECT * FROM members WHERE id=?", (id,)).fetchone()
+
+    if not member:
+        flash("Member not found.", "danger")
+        conn.close()
+        return redirect("/admin/members")
+
+    if request.method == "POST":
+        name = request.form.get("name", "").strip()
+        phone = request.form.get("phone", "").strip()
+        age = request.form.get("age", "").strip()
+        fitness_goal = request.form.get("fitness_goal", "")
+        new_password = request.form.get("password", "").strip()
+
+        # 🔹 ব্যাকএন্ড ভ্যালিডেশন: এডিট করার সময় নাম খালি রাখা যাবে না
+        if not name:
+            flash("Name cannot be empty!", "danger")
+            return redirect(f"/admin/edit_member/{id}")
+
+        if new_password:
+            conn.execute(
+                "UPDATE members SET name=?,phone=?,age=?,fitness_goal=?,password=? WHERE id=?",
+                (name, phone, age, fitness_goal, generate_password_hash(new_password), id)
+            )
+        else:
+            conn.execute(
+                "UPDATE members SET name=?,phone=?,age=?,fitness_goal=? WHERE id=?",
+                (name, phone, age, fitness_goal, id)
+            )
+        conn.commit()
+        conn.close()
+        flash(f"Member '{name}' updated successfully!", "success")
+        return redirect("/admin/members")
+
+    conn.close()
+    return render_template("admin_edit_member.html", member=member)
+
+
+@app.route("/admin/delete_member/<int:id>")
+def admin_delete_member(id):
+    if admin_required():
+        return redirect("/admin/login")
+
+    conn = get_db()
+    member = conn.execute("SELECT name FROM members WHERE id=?", (id,)).fetchone()
+    if member:
+        # মেম্বারের সাথে সংশ্লিষ্ট অন্যান্য ডাটাও মুছে ফেলা হচ্ছে
+        conn.execute("DELETE FROM members WHERE id=?", (id,))
+        conn.execute("DELETE FROM fitness_profile WHERE member_id=?", (id,))
+        conn.execute("DELETE FROM memberships WHERE member_id=?", (id,))
+        conn.execute("DELETE FROM attendance WHERE member_id=?", (id,))
+        conn.execute("DELETE FROM workouts WHERE member_id=?", (id,))
+        conn.execute("DELETE FROM progress WHERE member_id=?", (id,))
+        conn.commit()
+        flash(f"Member '{member['name']}' deleted.", "success")
+    else:
+        flash("Member not found.", "danger")
+    conn.close()
+    return redirect("/admin/members")
 
 
 @app.route("/admin/edit_member/<int:id>", methods=["GET", "POST"])
@@ -554,26 +627,6 @@ def admin_edit_member(id):
 
     conn.close()
     return render_template("admin_edit_member.html", member=member)
-
-
-@app.route("/admin/delete_member/<int:id>")
-def admin_delete_member(id):
-    if admin_required():
-        return redirect("/admin/login")
-
-    conn = get_db()
-    member = conn.execute("SELECT name FROM members WHERE id=?", (id,)).fetchone()
-    if member:
-        conn.execute("DELETE FROM members WHERE id=?", (id,))
-        conn.execute("DELETE FROM fitness_profile WHERE member_id=?", (id,))
-        conn.execute("DELETE FROM memberships WHERE member_id=?", (id,))
-        conn.commit()
-        flash(f"Member '{member['name']}' deleted.", "success")
-    else:
-        flash("Member not found.", "danger")
-    conn.close()
-    return redirect("/admin/members")
-
 
 
 # ==========================================
