@@ -628,17 +628,61 @@ def admin_edit_member(id):
     conn.close()
     return render_template("admin_edit_member.html", member=member)
 
+from datetime import date
 
-# ==========================================
-# MODULE 3: RICHY'S FEATURES (Workout & Attendance)
-# ==========================================
+# --- MODULE 3: ATTENDANCE & WORKOUTS (Richy) ---
+@app.route('/admin/attendance', methods=['GET', 'POST'])
+def admin_attendance():
+    if not session.get('admin'): return redirect('/admin/login')
+    db = get_db()
+    
+    # 🔹 Dynamic Date Fix: URL থেকে ডেট নিবে, না থাকলে আজকের ডেট নিবে
+    selected_date = request.args.get('date', date.today().isoformat())
+    
+    if request.method == 'POST':
+        # ফর্ম থেকে হিডেন ইনপুট হিসেবে সিলেক্টেড ডেট নিয়ে আসা হচ্ছে
+        target_date = request.form.get('attendance_date', selected_date)
+        
+        # আগে এই তারিখের যা এটেন্ডেন্স ছিল তা ডিলিট করা হচ্ছে যাতে ডুপ্লিকেট না হয়
+        db.execute('DELETE FROM attendance WHERE date = ?', (target_date,))
+        
+        members_list = db.execute('SELECT id FROM members').fetchall()
+        for m in members_list:
+            status = request.form.get(f'status_{m["id"]}')
+            if status == 'Present':
+                db.execute('INSERT INTO attendance (member_id, status, date) VALUES (?, ?, ?)',
+                           (m['id'], 'Present', target_date))
+        
+        db.commit()
+        flash(f'Attendance successfully saved for {target_date}!', 'success')
+        # সেভ করার পর ওই তারিখের পেজেই রিডাইরেক্ট করবে
+        return redirect(f'/admin/attendance?date={target_date}')
 
-# 1. Workout Assignment Feature
+    members = db.execute('SELECT id, name, phone FROM members').fetchall()
+    
+    # সিলেক্টেড ডেটের প্রেজেন্ট মেম্বারদের আইডি বের করা হচ্ছে
+    today_attendance = db.execute('SELECT member_id FROM attendance WHERE date = ? AND status = "Present"', (selected_date,)).fetchall()
+    present_ids = [row['member_id'] for row in today_attendance]
+    
+    history = db.execute('''
+        SELECT date, COUNT(member_id) as total_present 
+        FROM attendance 
+        WHERE status = 'Present'
+        GROUP BY date 
+        ORDER BY date DESC 
+        LIMIT 5
+    ''').fetchall()
+    
+    return render_template('admin_attendance.html', 
+                           members=members, 
+                           selected_date=selected_date, # Updated variable name
+                           present_ids=present_ids, 
+                           history=history)
+
+# Workout Routes (আগের মতোই, শুধু delete_workout অ্যাড করা হয়েছে)
 @app.route('/admin/assign_workout', methods=['GET', 'POST'])
 def admin_assign_workout():
-    if not session.get('admin'):
-        return redirect('/admin/login')
-    
+    if not session.get('admin'): return redirect('/admin/login')
     db = get_db()
     
     if request.method == 'POST':
@@ -652,87 +696,26 @@ def admin_assign_workout():
         flash('Workout assigned successfully!', 'success')
         return redirect('/admin/assign_workout')
 
-    
     members = db.execute('''
-        SELECT 
-            m.id, 
-            m.name, 
-            COALESCE(m.fitness_goal, 'General') as goal,
-            COALESCE(fp.fitness_level, 'Beginner') as level
-        FROM members m
-        LEFT JOIN fitness_profile fp ON m.id = fp.member_id
-        ORDER BY m.name ASC
+        SELECT m.id, m.name, COALESCE(m.fitness_goal, 'General') as goal, COALESCE(fp.fitness_level, 'Beginner') as level
+        FROM members m LEFT JOIN fitness_profile fp ON m.id = fp.member_id ORDER BY m.name ASC
     ''').fetchall()
 
     workouts = db.execute('''
         SELECT w.*, m.name as member_name 
-        FROM workouts w 
-        JOIN members m ON w.member_id = m.id
-        ORDER BY w.id DESC
+        FROM workouts w JOIN members m ON w.member_id = m.id ORDER BY w.id DESC
     ''').fetchall()
 
     return render_template('admin_assign_workout.html', members=members, workouts=workouts)
-    # --- ATTENDANCE HISTORY QUERY ---
-    history = conn.execute('''
-        SELECT date, COUNT(member_id) as total 
-        FROM attendance 
-        GROUP BY date 
-        ORDER BY date DESC 
-        LIMIT 5
-    ''').fetchall()
-    
-    conn.close()
-    return render_template('admin_attendance.html', members=members, today=today, present_ids=present_ids, history=history)
 
-
-from datetime import date
-
-@app.route('/admin/attendance', methods=['GET', 'POST'])
-def admin_attendance():
-    if not session.get('admin'):
-        return redirect('/admin/login')
-    
+@app.route('/admin/delete_workout/<int:id>')
+def admin_delete_workout(id):
+    if not session.get('admin'): return redirect('/admin/login')
     db = get_db()
-    
-    today = date.today().isoformat() 
-    
-    if request.method == 'POST':
-
-        db.execute('DELETE FROM attendance WHERE date = ?', (today,))
-        
-        members_list = db.execute('SELECT id FROM members').fetchall()
-        
-        for m in members_list:
-            status = request.form.get(f'status_{m["id"]}')
-            if status == 'Present':
-                db.execute('INSERT INTO attendance (member_id, status, date) VALUES (?, ?, ?)',
-                           (m['id'], 'Present', today))
-        
-        db.commit()
-        flash(f'Attendance successfully updated for {today}!', 'success')
-        return redirect('/admin/attendance')
-
-    members = db.execute('SELECT id, name, phone FROM members').fetchall()
-    
-    today_attendance = db.execute('SELECT member_id FROM attendance WHERE date = ? AND status = "Present"', (today,)).fetchall()
-    present_ids = [row['member_id'] for row in today_attendance]
-    
-    
-    history = db.execute('''
-        SELECT date, COUNT(member_id) as total_present 
-        FROM attendance 
-        WHERE status = 'Present'
-        GROUP BY date 
-        ORDER BY date DESC 
-        LIMIT 5
-    ''').fetchall()
-    
-    return render_template('admin_attendance.html', 
-                           members=members, 
-                           today_date=today, 
-                           present_ids=present_ids, 
-                           history=history)
-
+    db.execute('DELETE FROM workouts WHERE id = ?', (id,))
+    db.commit()
+    flash('Workout plan removed.', 'info')
+    return redirect('/admin/assign_workout')
     
 # ==============================================================
 #  RUN
