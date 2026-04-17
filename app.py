@@ -26,13 +26,51 @@ ADMIN_PASSWORD = "admin123"
 # ---------------------------------------------------------------
 # DATABASE HELPER
 # ---------------------------------------------------------------
+from flask import Flask, render_template, request, redirect, session, flash
+import os
+import psycopg2
+import psycopg2.extras
+import sqlite3
+from werkzeug.security import generate_password_hash, check_password_hash
+from datetime import datetime, timedelta
+import stripe
+from dotenv import load_dotenv
+
+load_dotenv()
+
+app = Flask(__name__)
+app.secret_key = os.getenv("FLASK_SECRET_KEY")
+
+# ---------------------------------------------------------------
+# Stripe & Admin Configuration
+# ---------------------------------------------------------------
+STRIPE_PUBLIC_KEY = os.getenv("STRIPE_PUBLIC_KEY")
+STRIPE_SECRET_KEY = os.getenv("STRIPE_SECRET_KEY")
+stripe.api_key = STRIPE_SECRET_KEY
+
+ADMIN_USERNAME = os.getenv("ADMIN_USERNAME")
+ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD")
+
+# ---------------------------------------------------------------
+# HYBRID DATABASE HELPER (SQLite + PostgreSQL)
+# ---------------------------------------------------------------
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 DATABASE = os.path.join(BASE_DIR, "database.db")
+DATABASE_URL = os.environ.get('DATABASE_URL')
 
 def get_db():
-    conn = sqlite3.connect(DATABASE)
-    conn.row_factory = sqlite3.Row
-    return conn
+    if DATABASE_URL:
+        # PostgreSQL কানেকশন (Render/Cloud এর জন্য)
+        url = DATABASE_URL.replace("postgres://", "postgresql://", 1)
+        # RealDictCursor ব্যবহার করা হয়েছে যাতে row["column_name"] এভাবে ডেটা পড়া যায়
+        conn = psycopg2.connect(url, cursor_factory=psycopg2.extras.RealDictCursor)
+        conn.autocommit = True 
+        return conn
+    else:
+        # লোকাল কম্পিউটারে কাজ করার সময় SQLite কানেকশন
+        conn = sqlite3.connect(DATABASE)
+        conn.row_factory = sqlite3.Row
+        return conn
 
 
 # ==============================================================
