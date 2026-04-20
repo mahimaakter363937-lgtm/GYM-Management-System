@@ -85,21 +85,24 @@ def register():
         password     = generate_password_hash(request.form["password"])
 
         conn = get_db()
+        cur = conn.cursor() # কার্সর তৈরি
         try:
-            conn.execute(
-                "INSERT INTO members (name,phone,age,fitness_goal,username,password) VALUES (%s,%s,%s,%s,%s,%s)",
+            cur.execute(
+                "INSERT INTO members (name, phone, age, fitness_goal, username, password) VALUES (%s, %s, %s, %s, %s, %s)",
                 (name, phone, age, fitness_goal, username, password)
             )
             conn.commit()
             flash("Registration successful! Please log in.", "success")
             return redirect("/login")
-        except sqlite3.IntegrityError:
-            flash("Username already taken. Please choose another.", "danger")
+        except Exception as e:
+            conn.rollback()
+            flash("Username already taken or Database error.", "danger")
+            print(f"Error: {e}")
         finally:
+            cur.close()
             conn.close()
 
     return render_template("register.html")
-
 
 @app.route("/login", methods=["GET", "POST"])
 def login():
@@ -107,15 +110,14 @@ def login():
         username = request.form["username"].strip()
         password = request.form["password"].strip()
 
-        # সরাসরি অ্যাডমিন চেক (admin / admin123)
+        # সরাসরি অ্যাডমিন চেক (এনভায়রনমেন্ট ভেরিয়েবল ঝামেলা করলে এটি কাজ করবে)
         if username == "admin" and password == "admin123":
             session["admin"] = True
             flash("Welcome, Admin! 👑", "success")
             return redirect("/admin")
 
-        # মেম্বার চেক করার জন্য ডাটাবেস কানেকশন
+        # মেম্বার চেক
         conn = get_db()
-        # RealDictCursor ব্যবহার করলে member['name'] এভাবে ডাটা রিড করা যায়
         cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
         
         try:
@@ -128,14 +130,12 @@ def login():
             cur.close()
             conn.close()
 
-        # পাসওয়ার্ড চেক
         if member and check_password_hash(member["password"], password):
             session["member_id"] = member["id"]
             flash(f"Welcome back, {member['name']}! 💪", "success")
             return redirect("/dashboard")
 
         flash("Invalid username or password.", "danger")
-    
     return render_template("login.html")
 
 @app.route("/logout")
