@@ -21,8 +21,9 @@ STRIPE_PUBLIC_KEY = os.getenv("STRIPE_PUBLIC_KEY")
 STRIPE_SECRET_KEY = os.getenv("STRIPE_SECRET_KEY")
 stripe.api_key = STRIPE_SECRET_KEY
 
-ADMIN_USERNAME = os.getenv("ADMIN_USERNAME")
-ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD")
+# এখানে সরাসরি ইউজারনেম এবং পাসওয়ার্ড সেট করে দেওয়া হলো
+ADMIN_USERNAME = "admin"
+ADMIN_PASSWORD = "admin1234"
 
 # ---------------------------------------------------------------
 # HYBRID DATABASE HELPER (SQLite + PostgreSQL)
