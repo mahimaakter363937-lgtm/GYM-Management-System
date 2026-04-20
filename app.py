@@ -33,19 +33,29 @@ DATABASE_URL = os.environ.get('DATABASE_URL')
 
 
 
+
+import os
 import psycopg2
 from psycopg2.extras import RealDictCursor
 
 def get_db():
-    # এখানে আপনার লোকাল PostgreSQL এর তথ্য দিন
-    conn = psycopg2.connect(
-        dbname="your_db_name",    # আপনার তৈরি করা ডাটাবেসের নাম
-        user="postgres",          # ডিফল্ট ইউজার সাধারণত postgres
-        password="your_password",  # আপনার সেট করা পাসওয়ার্ড
-        host="localhost",
-        port="5432"
-    )
-    # এটি রেজাল্টকে ডিকশনারি আকারে দেয় (SQLite এর row_factory এর মতো)
+    # রেন্ডার নিজে থেকেই 'DATABASE_URL' নামে একটি এনভায়রনমেন্ট ভেরিয়েবল দেয়
+    db_url = os.environ.get('DATABASE_URL')
+
+    if db_url:
+        # এটি যখন রেন্ডারে (Live) চলবে তখন কাজ করবে
+        # SSL মোড 'require' দেওয়া জরুরি কারণ ক্লাউড ডাটাবেস এটি ছাড়া কানেক্ট হয় না
+        conn = psycopg2.connect(db_url, sslmode='require')
+    else:
+        # এটি যখন আপনার লোকাল পিসিতে চলবে তখন কাজ করবে
+        conn = psycopg2.connect(
+            dbname="your_local_db_name", 
+            user="postgres", 
+            password="your_password", 
+            host="localhost",
+            port="5432"
+        )
+    
     return conn
 
 # কুয়েরি চালানোর সময় cursor(cursor_factory=RealDictCursor) ব্যবহার করবেন
