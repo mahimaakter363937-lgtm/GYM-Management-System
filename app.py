@@ -48,12 +48,13 @@ def get_db():
         conn = psycopg2.connect(db_url, sslmode='require')
     else:
         # এটি যখন আপনার লোকাল পিসিতে চলবে তখন কাজ করবে
-        conn = psycopg2.connect(
-            dbname="your_local_db_name", 
-            user="postgres", 
-            password="your_password", 
-            host="localhost",
-            port="5432"
+      conn = psycopg2.connect(
+    dbname="gym_management",
+    user="postgres",
+    password="", # একদম ফাঁকা রাখুন
+    host="localhost",
+    port="5432"
+
         )
     
     return conn
