@@ -107,25 +107,36 @@ def login():
         username = request.form["username"].strip()
         password = request.form["password"].strip()
 
-        # Check if this is the admin first
-        if username == ADMIN_USERNAME and password == ADMIN_PASSWORD:
+        # সরাসরি অ্যাডমিন চেক (admin / admin123)
+        if username == "admin" and password == "admin123":
             session["admin"] = True
             flash("Welcome, Admin! 👑", "success")
             return redirect("/admin")
 
-        # Otherwise check member database
-        conn   = get_db()
-        member = conn.execute("SELECT * FROM members WHERE username=%s", (username,)).fetchone()
-        conn.close()
+        # মেম্বার চেক করার জন্য ডাটাবেস কানেকশন
+        conn = get_db()
+        # RealDictCursor ব্যবহার করলে member['name'] এভাবে ডাটা রিড করা যায়
+        cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+        
+        try:
+            cur.execute("SELECT * FROM members WHERE username=%s", (username,))
+            member = cur.fetchone()
+        except Exception as e:
+            print(f"Database Error: {e}")
+            member = None
+        finally:
+            cur.close()
+            conn.close()
 
+        # পাসওয়ার্ড চেক
         if member and check_password_hash(member["password"], password):
             session["member_id"] = member["id"]
             flash(f"Welcome back, {member['name']}! 💪", "success")
             return redirect("/dashboard")
 
         flash("Invalid username or password.", "danger")
+    
     return render_template("login.html")
-
 
 @app.route("/logout")
 def logout():
