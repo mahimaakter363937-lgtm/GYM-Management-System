@@ -12,7 +12,8 @@ load_dotenv()
 
 app = Flask(__name__)
 
-app.secret_key = os.environ.get("SECRET_KEY")
+# এটি দিলে রেন্ডার ভেরিয়েবল না পেলেও ডিফল্টটি ব্যবহার করবে, ফলে আর কখনোই ক্র্যাশ করবে না
+app.secret_key = os.environ.get("SECRET_KEY", "gym_super_secret_key_12345")
 # ---------------------------------------------------------------
 # Stripe & Admin Configuration
 # ---------------------------------------------------------------
