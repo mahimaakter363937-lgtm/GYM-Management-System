@@ -11,8 +11,8 @@ from dotenv import load_dotenv
 load_dotenv()
 
 app = Flask(__name__)
-app.secret_key = os.getenv("FLASK_SECRET_KEY")
 
+app.secret_key = os.environ.get("SECRET_KEY")
 # ---------------------------------------------------------------
 # Stripe & Admin Configuration
 # ---------------------------------------------------------------
