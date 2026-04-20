@@ -1,67 +1,43 @@
 from flask import Flask, render_template, request, redirect, session, flash
-import os
-import psycopg2
-import psycopg2.extras
 import sqlite3
 from werkzeug.security import generate_password_hash, check_password_hash
 from datetime import datetime, timedelta
 import stripe
+import os
 from dotenv import load_dotenv
-
 load_dotenv()
 
-app = Flask(__name__)
 
-# এটি দিলে রেন্ডার ভেরিয়েবল না পেলেও ডিফল্টটি ব্যবহার করবে, ফলে আর কখনোই ক্র্যাশ করবে না
-app.secret_key = os.environ.get("SECRET_KEY", "gym_super_secret_key_12345")
+
+app = Flask(__name__)
+app.secret_key = os.getenv("FLASK_SECRET_KEY")
 # ---------------------------------------------------------------
-# Stripe & Admin Configuration
+# Stripe Configuration
+# Use test keys — replace with live keys in production
 # ---------------------------------------------------------------
 STRIPE_PUBLIC_KEY = os.getenv("STRIPE_PUBLIC_KEY")
 STRIPE_SECRET_KEY = os.getenv("STRIPE_SECRET_KEY")
+
 stripe.api_key = STRIPE_SECRET_KEY
 
-# এখানে সরাসরি ইউজারনেম এবং পাসওয়ার্ড সেট করে দেওয়া হলো
-ADMIN_USERNAME = "admin"
-ADMIN_PASSWORD = "admin1234"
+# ---------------------------------------------------------------
+# Admin Credentials (hardcoded — can be moved to DB later)
+# ---------------------------------------------------------------
+ADMIN_USERNAME = os.getenv("ADMIN_USERNAME")
+ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD")
+
 
 # ---------------------------------------------------------------
-# HYBRID DATABASE HELPER (SQLite + PostgreSQL)
+# DATABASE HELPER
 # ---------------------------------------------------------------
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 DATABASE = os.path.join(BASE_DIR, "database.db")
-DATABASE_URL = os.environ.get('DATABASE_URL')
-
-
-
-
-
-import os
-import psycopg2
-from psycopg2.extras import RealDictCursor
 
 def get_db():
-    # রেন্ডার নিজে থেকেই 'DATABASE_URL' নামে একটি এনভায়রনমেন্ট ভেরিয়েবল দেয়
-    db_url = os.environ.get('DATABASE_URL')
-
-    if db_url:
-        # এটি যখন রেন্ডারে (Live) চলবে তখন কাজ করবে
-        # SSL মোড 'require' দেওয়া জরুরি কারণ ক্লাউড ডাটাবেস এটি ছাড়া কানেক্ট হয় না
-        conn = psycopg2.connect(db_url, sslmode='require')
-    else:
-        # এটি যখন আপনার লোকাল পিসিতে চলবে তখন কাজ করবে
-      conn = psycopg2.connect(
-    dbname="gym_management",
-    user="postgres",
-    password="", # একদম ফাঁকা রাখুন
-    host="localhost",
-    port="5432"
-
-        )
-    
+    conn = sqlite3.connect(DATABASE)
+    conn.row_factory = sqlite3.Row
     return conn
 
-# কুয়েরি চালানোর সময় cursor(cursor_factory=RealDictCursor) ব্যবহার করবেন
 
 # ==============================================================
 #  HOME
@@ -85,24 +61,21 @@ def register():
         password     = generate_password_hash(request.form["password"])
 
         conn = get_db()
-        cur = conn.cursor() # কার্সর তৈরি
         try:
-            cur.execute(
-                "INSERT INTO members (name, phone, age, fitness_goal, username, password) VALUES (%s, %s, %s, %s, %s, %s)",
+            conn.execute(
+                "INSERT INTO members (name,phone,age,fitness_goal,username,password) VALUES (?,?,?,?,?,?)",
                 (name, phone, age, fitness_goal, username, password)
             )
             conn.commit()
             flash("Registration successful! Please log in.", "success")
             return redirect("/login")
-        except Exception as e:
-            conn.rollback()
-            flash("Username already taken or Database error.", "danger")
-            print(f"Error: {e}")
+        except sqlite3.IntegrityError:
+            flash("Username already taken. Please choose another.", "danger")
         finally:
-            cur.close()
             conn.close()
 
     return render_template("register.html")
+
 
 @app.route("/login", methods=["GET", "POST"])
 def login():
@@ -110,25 +83,16 @@ def login():
         username = request.form["username"].strip()
         password = request.form["password"].strip()
 
-        # সরাসরি অ্যাডমিন চেক (এনভায়রনমেন্ট ভেরিয়েবল ঝামেলা করলে এটি কাজ করবে)
-        if username == "admin" and password == "admin123":
+        # Check if this is the admin first
+        if username == ADMIN_USERNAME and password == ADMIN_PASSWORD:
             session["admin"] = True
             flash("Welcome, Admin! 👑", "success")
             return redirect("/admin")
 
-        # মেম্বার চেক
-        conn = get_db()
-        cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
-        
-        try:
-            cur.execute("SELECT * FROM members WHERE username=%s", (username,))
-            member = cur.fetchone()
-        except Exception as e:
-            print(f"Database Error: {e}")
-            member = None
-        finally:
-            cur.close()
-            conn.close()
+        # Otherwise check member database
+        conn   = get_db()
+        member = conn.execute("SELECT * FROM members WHERE username=?", (username,)).fetchone()
+        conn.close()
 
         if member and check_password_hash(member["password"], password):
             session["member_id"] = member["id"]
@@ -137,6 +101,7 @@ def login():
 
         flash("Invalid username or password.", "danger")
     return render_template("login.html")
+
 
 @app.route("/logout")
 def logout():
@@ -155,19 +120,19 @@ def dashboard():
     conn = get_db()
 
     member = conn.execute(
-        "SELECT * FROM members WHERE id=%s", 
+        "SELECT * FROM members WHERE id=?", 
         (session["member_id"],)
     ).fetchone()
 
     # 🔹 Fitness data
     fitness = conn.execute(
-        "SELECT * FROM fitness_profile WHERE member_id=%s",
+        "SELECT * FROM fitness_profile WHERE member_id=?",
         (session["member_id"],)
     ).fetchone()
 
     # 🔹 Workout data
     workouts = conn.execute(
-        "SELECT * FROM workouts WHERE member_id=%s ORDER BY id DESC",
+        "SELECT * FROM workouts WHERE member_id=? ORDER BY id DESC",
         (session["member_id"],)
     ).fetchall()
 
@@ -176,7 +141,7 @@ def dashboard():
         SELECT dp.*
         FROM diet_plans dp
         JOIN member_diet_plans mdp ON dp.id = mdp.diet_plan_id
-        WHERE mdp.member_id = %s
+        WHERE mdp.member_id = ?
     """, (session["member_id"],)).fetchone()
 
     conn.close()
@@ -201,7 +166,7 @@ def profile():
     conn = get_db()
     if request.method == "POST":
         conn.execute(
-            "UPDATE members SET name=%s,phone=%s,age=%s,fitness_goal=%s WHERE id=%s",
+            "UPDATE members SET name=?,phone=?,age=?,fitness_goal=? WHERE id=?",
             (request.form["name"], request.form["phone"],
              request.form["age"], request.form["fitness_goal"],
              session["member_id"])
@@ -209,7 +174,7 @@ def profile():
         conn.commit()
         flash("Profile updated successfully!", "success")
 
-    member = conn.execute("SELECT * FROM members WHERE id=%s", (session["member_id"],)).fetchone()
+    member = conn.execute("SELECT * FROM members WHERE id=?", (session["member_id"],)).fetchone()
     conn.close()
     return render_template("profile.html", member=member)
 
@@ -252,24 +217,24 @@ def fitness():
 
             # চেক করা হচ্ছে আগে প্রোফাইল তৈরি করা আছে কিনা
             existing = conn.execute(
-                "SELECT * FROM fitness_profile WHERE member_id=%s", 
+                "SELECT * FROM fitness_profile WHERE member_id=?", 
                 (session["member_id"],)
             ).fetchone()
 
             if existing:
                 conn.execute(
-                    "UPDATE fitness_profile SET height=%s, weight=%s, bmi=%s, fitness_level=%s WHERE member_id=%s",
+                    "UPDATE fitness_profile SET height=?, weight=?, bmi=?, fitness_level=? WHERE member_id=?",
                     (height, weight, bmi, fitness_level, session["member_id"])
                 )
             else:
                 conn.execute(
-                    "INSERT INTO fitness_profile (member_id, height, weight, bmi, fitness_level) VALUES (%s,%s,%s,%s,%s)",
+                    "INSERT INTO fitness_profile (member_id, height, weight, bmi, fitness_level) VALUES (?,?,?,?,?)",
                     (session["member_id"], height, weight, bmi, fitness_level)
                 )
 
             # প্রগ্রেস হিস্ট্রি সেভ করা (যাতে ভবিষ্যতে গ্রাফ দেখানো যায়)
             conn.execute(
-                "INSERT INTO progress (member_id, weight, bmi, date) VALUES (%s, %s, %s, %s)",
+                "INSERT INTO progress (member_id, weight, bmi, date) VALUES (?, ?, ?, ?)",
                 (session["member_id"], weight, bmi, datetime.now().strftime("%Y-%m-%d"))
             )
 
@@ -279,7 +244,7 @@ def fitness():
             flash(f"Invalid input: {e}", "danger")
 
     profile = conn.execute(
-        "SELECT * FROM fitness_profile WHERE member_id=%s", 
+        "SELECT * FROM fitness_profile WHERE member_id=?", 
         (session["member_id"],)
     ).fetchone()
 
@@ -318,7 +283,7 @@ def checkout(plan_id):
         return redirect("/login")
 
     conn = get_db()
-    plan = conn.execute("SELECT * FROM membership_plans WHERE id=%s", (plan_id,)).fetchone()
+    plan = conn.execute("SELECT * FROM membership_plans WHERE id=?", (plan_id,)).fetchone()
     conn.close()
 
     if not plan:
@@ -342,7 +307,7 @@ def process_payment():
     cvc = request.form.get("cvc")
 
     conn = get_db()
-    plan = conn.execute("SELECT * FROM membership_plans WHERE id=%s", (plan_id,)).fetchone()
+    plan = conn.execute("SELECT * FROM membership_plans WHERE id=?", (plan_id,)).fetchone()
 
     if not plan:
         flash("Invalid plan selected.", "danger")
@@ -358,23 +323,23 @@ def process_payment():
     end_date = today + timedelta(days=plan["duration_days"])
 
     conn.execute(
-        "INSERT INTO payments (member_id,plan_id,amount,payment_status,payment_date) VALUES (%s,%s,%s,%s,%s)",
+        "INSERT INTO payments (member_id,plan_id,amount,payment_status,payment_date) VALUES (?,?,?,?,?)",
         (session["member_id"], plan_id, plan["price"], payment_status, today.strftime("%Y-%m-%d"))
     )
 
     # Activate / update membership
     existing = conn.execute(
-        "SELECT * FROM memberships WHERE member_id=%s", (session["member_id"],)
+        "SELECT * FROM memberships WHERE member_id=?", (session["member_id"],)
     ).fetchone()
 
     if existing:
         conn.execute(
-            "UPDATE memberships SET plan_id=%s,start_date=%s,end_date=%s WHERE member_id=%s",
+            "UPDATE memberships SET plan_id=?,start_date=?,end_date=? WHERE member_id=?",
             (plan_id, today.strftime("%Y-%m-%d"), end_date.strftime("%Y-%m-%d"), session["member_id"])
         )
     else:
         conn.execute(
-            "INSERT INTO memberships (member_id,plan_id,start_date,end_date) VALUES (%s,%s,%s,%s)",
+            "INSERT INTO memberships (member_id,plan_id,start_date,end_date) VALUES (?,?,?,?)",
             (session["member_id"], plan_id, today.strftime("%Y-%m-%d"), end_date.strftime("%Y-%m-%d"))
         )
 
@@ -384,7 +349,7 @@ def process_payment():
         f"Your membership is active until {end_date.strftime('%Y-%m-%d')}."
     )
     conn.execute(
-        "INSERT INTO notifications (member_id, message) VALUES (%s,%s)",
+        "INSERT INTO notifications (member_id, message) VALUES (?,?)",
         (session["member_id"], success_msg)
     )
 
@@ -413,7 +378,7 @@ def membership_status():
         SELECT m.*, p.plan_name, p.duration_days
         FROM memberships m
         JOIN membership_plans p ON m.plan_id = p.id
-        WHERE m.member_id = %s
+        WHERE m.member_id = ?
     """, (session["member_id"],)).fetchone()
     conn.close()
 
@@ -446,7 +411,7 @@ def payment_history():
         SELECT p.*, mp.plan_name
         FROM payments p
         JOIN membership_plans mp ON p.plan_id = mp.id
-        WHERE p.member_id = %s
+        WHERE p.member_id = ?
         ORDER BY p.payment_date DESC
     """, (session["member_id"],)).fetchall()
     conn.close()
@@ -577,7 +542,7 @@ def admin_add_member():
         conn = get_db()
         try:
             conn.execute(
-                "INSERT INTO members (name,phone,age,fitness_goal,username,password) VALUES (%s,%s,%s,%s,%s,%s)",
+                "INSERT INTO members (name,phone,age,fitness_goal,username,password) VALUES (?,?,?,?,?,?)",
                 (name, phone, age, fitness_goal, username, password)
             )
             conn.commit()
@@ -597,7 +562,7 @@ def admin_edit_member(id):
         return redirect("/admin/login")
 
     conn = get_db()
-    member = conn.execute("SELECT * FROM members WHERE id=%s", (id,)).fetchone()
+    member = conn.execute("SELECT * FROM members WHERE id=?", (id,)).fetchone()
 
     if not member:
         flash("Member not found.", "danger")
@@ -617,12 +582,12 @@ def admin_edit_member(id):
 
         if new_password:
             conn.execute(
-                "UPDATE members SET name=%s,phone=%s,age=%s,fitness_goal=%s,password=%s WHERE id=%s",
+                "UPDATE members SET name=?,phone=?,age=?,fitness_goal=?,password=? WHERE id=?",
                 (name, phone, age, fitness_goal, generate_password_hash(new_password), id)
             )
         else:
             conn.execute(
-                "UPDATE members SET name=%s,phone=%s,age=%s,fitness_goal=%s WHERE id=%s",
+                "UPDATE members SET name=?,phone=?,age=?,fitness_goal=? WHERE id=?",
                 (name, phone, age, fitness_goal, id)
             )
         conn.commit()
@@ -639,15 +604,15 @@ def admin_delete_member(id):
         return redirect("/admin/login")
 
     conn = get_db()
-    member = conn.execute("SELECT name FROM members WHERE id=%s", (id,)).fetchone()
+    member = conn.execute("SELECT name FROM members WHERE id=?", (id,)).fetchone()
     if member:
         # মেম্বারের সাথে সংশ্লিষ্ট অন্যান্য ডাটাও মুছে ফেলা হচ্ছে
-        conn.execute("DELETE FROM members WHERE id=%s", (id,))
-        conn.execute("DELETE FROM fitness_profile WHERE member_id=%s", (id,))
-        conn.execute("DELETE FROM memberships WHERE member_id=%s", (id,))
-        conn.execute("DELETE FROM attendance WHERE member_id=%s", (id,))
-        conn.execute("DELETE FROM workouts WHERE member_id=%s", (id,))
-        conn.execute("DELETE FROM progress WHERE member_id=%s", (id,))
+        conn.execute("DELETE FROM members WHERE id=?", (id,))
+        conn.execute("DELETE FROM fitness_profile WHERE member_id=?", (id,))
+        conn.execute("DELETE FROM memberships WHERE member_id=?", (id,))
+        conn.execute("DELETE FROM attendance WHERE member_id=?", (id,))
+        conn.execute("DELETE FROM workouts WHERE member_id=?", (id,))
+        conn.execute("DELETE FROM progress WHERE member_id=?", (id,))
         conn.commit()
         flash(f"Member '{member['name']}' deleted.", "success")
     else:
@@ -680,7 +645,7 @@ def admin_add_plan():
 
         conn = get_db()
         conn.execute(
-            "INSERT INTO membership_plans (plan_name,price,duration_days) VALUES (%s,%s,%s)",
+            "INSERT INTO membership_plans (plan_name,price,duration_days) VALUES (?,?,?)",
             (name, price, duration)
         )
         conn.commit()
@@ -697,7 +662,7 @@ def admin_edit_plan(id):
         return redirect("/admin/login")
 
     conn = get_db()
-    plan = conn.execute("SELECT * FROM membership_plans WHERE id=%s", (id,)).fetchone()
+    plan = conn.execute("SELECT * FROM membership_plans WHERE id=?", (id,)).fetchone()
 
     if not plan:
         flash("Plan not found.", "danger")
@@ -709,7 +674,7 @@ def admin_edit_plan(id):
         price    = float(request.form["price"])
         duration = int(request.form["duration"])
         conn.execute(
-            "UPDATE membership_plans SET plan_name=%s,price=%s,duration_days=%s WHERE id=%s",
+            "UPDATE membership_plans SET plan_name=?,price=?,duration_days=? WHERE id=?",
             (name, price, duration, id)
         )
         conn.commit()
@@ -727,9 +692,9 @@ def admin_delete_plan(id):
         return redirect("/admin/login")
 
     conn = get_db()
-    plan = conn.execute("SELECT plan_name FROM membership_plans WHERE id=%s", (id,)).fetchone()
+    plan = conn.execute("SELECT plan_name FROM membership_plans WHERE id=?", (id,)).fetchone()
     if plan:
-        conn.execute("DELETE FROM membership_plans WHERE id=%s", (id,))
+        conn.execute("DELETE FROM membership_plans WHERE id=?", (id,))
         conn.commit()
         flash(f"Plan '{plan['plan_name']}' deleted.", "success")
     else:
@@ -763,7 +728,7 @@ def admin_delete_payment(id):
     if admin_required():
         return redirect("/admin/login")
     conn = get_db()
-    conn.execute("DELETE FROM payments WHERE id=%s", (id,))
+    conn.execute("DELETE FROM payments WHERE id=?", (id,))
     conn.commit()
     conn.close()
     flash("Payment record deleted.", "success")
@@ -785,40 +750,40 @@ def admin_add_payment():
         
         # Save payment record
         conn.execute(
-            "INSERT INTO payments (member_id,plan_id,amount,payment_status,payment_date) VALUES (%s,%s,%s,%s,%s)",
+            "INSERT INTO payments (member_id,plan_id,amount,payment_status,payment_date) VALUES (?,?,?,?,?)",
             (member_id, plan_id, amount, status, date)
         )
         
         # If Paid, update membership + notify user
         if status == "Paid":
-            plan_info = conn.execute("SELECT duration_days, plan_name, price FROM membership_plans WHERE id=%s", (plan_id,)).fetchone()
+            plan_info = conn.execute("SELECT duration_days, plan_name, price FROM membership_plans WHERE id=?", (plan_id,)).fetchone()
             if plan_info:
                 start_dt = datetime.strptime(date, "%Y-%m-%d")
                 end_dt   = start_dt + timedelta(days=plan_info["duration_days"])
 
-                existing = conn.execute("SELECT id FROM memberships WHERE member_id=%s", (member_id,)).fetchone()
+                existing = conn.execute("SELECT id FROM memberships WHERE member_id=?", (member_id,)).fetchone()
                 if existing:
                     conn.execute(
-                        "UPDATE memberships SET plan_id=%s,start_date=%s,end_date=%s WHERE member_id=%s",
+                        "UPDATE memberships SET plan_id=?,start_date=?,end_date=? WHERE member_id=?",
                         (plan_id, date, end_dt.strftime("%Y-%m-%d"), member_id)
                     )
                 else:
                     conn.execute(
-                        "INSERT INTO memberships (member_id,plan_id,start_date,end_date) VALUES (%s,%s,%s,%s)",
+                        "INSERT INTO memberships (member_id,plan_id,start_date,end_date) VALUES (?,?,?,?)",
                         (member_id, plan_id, date, end_dt.strftime("%Y-%m-%d"))
                     )
                 # Notify user: payment confirmed
                 conn.execute(
-                    "INSERT INTO notifications (member_id, message) VALUES (%s,%s)",
+                    "INSERT INTO notifications (member_id, message) VALUES (?,?)",
                     (member_id, f"✅ Payment of ${amount:.2f} for '{plan_info['plan_name']}' confirmed by Admin. Membership active until {end_dt.strftime('%Y-%m-%d')}.")
                 )
 
         elif status == "Pending":
-            plan_info = conn.execute("SELECT plan_name FROM membership_plans WHERE id=%s", (plan_id,)).fetchone()
+            plan_info = conn.execute("SELECT plan_name FROM membership_plans WHERE id=?", (plan_id,)).fetchone()
             plan_label = plan_info["plan_name"] if plan_info else "your selected plan"
             # Notify user: payment pending
             conn.execute(
-                "INSERT INTO notifications (member_id, message) VALUES (%s,%s)",
+                "INSERT INTO notifications (member_id, message) VALUES (?,?)",
                 (member_id, f"⏳ Payment of ${amount:.2f} for '{plan_label}' is PENDING. Please complete your payment to activate your membership.")
             )
 
@@ -843,7 +808,7 @@ def admin_edit_payment(id):
         return redirect("/admin/login")
     
     conn = get_db()
-    payment = conn.execute("SELECT * FROM payments WHERE id=%s", (id,)).fetchone()
+    payment = conn.execute("SELECT * FROM payments WHERE id=?", (id,)).fetchone()
     
     if not payment:
         flash("Payment not found.", "danger")
@@ -862,26 +827,26 @@ def admin_edit_payment(id):
         
         conn.execute("""
             UPDATE payments 
-            SET member_id=%s, plan_id=%s, amount=%s, payment_status=%s, payment_date=%s 
-            WHERE id=%s
+            SET member_id=?, plan_id=?, amount=?, payment_status=?, payment_date=? 
+            WHERE id=?
         """, (member_id, plan_id, amount, status, date, id))
         
         # If updated to Paid, update/activate membership
         if status == "Paid":
-            plan = conn.execute("SELECT duration_days FROM membership_plans WHERE id=%s", (plan_id,)).fetchone()
+            plan = conn.execute("SELECT duration_days FROM membership_plans WHERE id=?", (plan_id,)).fetchone()
             if plan:
                 start_dt = datetime.strptime(date, "%Y-%m-%d")
                 end_dt   = start_dt + timedelta(days=plan["duration_days"])
                 
-                existing = conn.execute("SELECT id FROM memberships WHERE member_id=%s", (member_id,)).fetchone()
+                existing = conn.execute("SELECT id FROM memberships WHERE member_id=?", (member_id,)).fetchone()
                 if existing:
                     conn.execute(
-                        "UPDATE memberships SET plan_id=%s,start_date=%s,end_date=%s WHERE member_id=%s",
+                        "UPDATE memberships SET plan_id=?,start_date=?,end_date=? WHERE member_id=?",
                         (plan_id, date, end_dt.strftime("%Y-%m-%d"), member_id)
                     )
                 else:
                     conn.execute(
-                        "INSERT INTO memberships (member_id,plan_id,start_date,end_date) VALUES (%s,%s,%s,%s)",
+                        "INSERT INTO memberships (member_id,plan_id,start_date,end_date) VALUES (?,?,?,?)",
                         (member_id, plan_id, date, end_dt.strftime("%Y-%m-%d"))
                     )
         
@@ -907,7 +872,7 @@ def generate_expiry_notifications(member_id):
         SELECT m.end_date, p.plan_name
         FROM memberships m
         JOIN membership_plans p ON m.plan_id = p.id
-        WHERE m.member_id = %s
+        WHERE m.member_id = ?
     """, (member_id,)).fetchone()
 
     if membership:
@@ -918,34 +883,34 @@ def generate_expiry_notifications(member_id):
         if days_left == 7:
             msg = f"⚠️ Your '{membership['plan_name']}' membership expires in 7 days ({membership['end_date'][:10]}). Please renew soon!"
             existing = conn.execute(
-                "SELECT id FROM notifications WHERE member_id=%s AND message=%s", (member_id, msg)
+                "SELECT id FROM notifications WHERE member_id=? AND message=?", (member_id, msg)
             ).fetchone()
             if not existing:
-                conn.execute("INSERT INTO notifications (member_id, message) VALUES (%s,%s)", (member_id, msg))
+                conn.execute("INSERT INTO notifications (member_id, message) VALUES (?,?)", (member_id, msg))
 
         elif days_left == 3:
             msg = f"🚨 URGENT: Your '{membership['plan_name']}' membership expires in 3 days! Renew now to avoid losing access."
             existing = conn.execute(
-                "SELECT id FROM notifications WHERE member_id=%s AND message=%s", (member_id, msg)
+                "SELECT id FROM notifications WHERE member_id=? AND message=?", (member_id, msg)
             ).fetchone()
             if not existing:
-                conn.execute("INSERT INTO notifications (member_id, message) VALUES (%s,%s)", (member_id, msg))
+                conn.execute("INSERT INTO notifications (member_id, message) VALUES (?,?)", (member_id, msg))
 
         elif days_left == 0:
             msg = f"❌ Your '{membership['plan_name']}' membership expires TODAY! Please renew immediately."
             existing = conn.execute(
-                "SELECT id FROM notifications WHERE member_id=%s AND message=%s", (member_id, msg)
+                "SELECT id FROM notifications WHERE member_id=? AND message=?", (member_id, msg)
             ).fetchone()
             if not existing:
-                conn.execute("INSERT INTO notifications (member_id, message) VALUES (%s,%s)", (member_id, msg))
+                conn.execute("INSERT INTO notifications (member_id, message) VALUES (?,?)", (member_id, msg))
 
         elif days_left < 0:
             msg = f"❌ Your '{membership['plan_name']}' membership has EXPIRED {abs(days_left)} day(s) ago. Please renew to regain access."
             existing = conn.execute(
-                "SELECT id FROM notifications WHERE member_id=%s AND message=%s", (member_id, msg)
+                "SELECT id FROM notifications WHERE member_id=? AND message=?", (member_id, msg)
             ).fetchone()
             if not existing:
-                conn.execute("INSERT INTO notifications (member_id, message) VALUES (%s,%s)", (member_id, msg))
+                conn.execute("INSERT INTO notifications (member_id, message) VALUES (?,?)", (member_id, msg))
 
     conn.commit()
     conn.close()
@@ -960,7 +925,7 @@ def notifications():
 
     conn = get_db()
     notifs = conn.execute(
-        "SELECT * FROM notifications WHERE member_id=%s ORDER BY created_at DESC",
+        "SELECT * FROM notifications WHERE member_id=? ORDER BY created_at DESC",
         (session["member_id"],)
     ).fetchall()
     conn.close()
@@ -972,7 +937,7 @@ def mark_notification_read(id):
     if "member_id" not in session:
         return redirect("/login")
     conn = get_db()
-    conn.execute("UPDATE notifications SET is_read=1 WHERE id=%s AND member_id=%s", (id, session["member_id"]))
+    conn.execute("UPDATE notifications SET is_read=1 WHERE id=? AND member_id=?", (id, session["member_id"]))
     conn.commit()
     conn.close()
     return redirect("/notifications")
@@ -983,7 +948,7 @@ def mark_all_read():
     if "member_id" not in session:
         return redirect("/login")
     conn = get_db()
-    conn.execute("UPDATE notifications SET is_read=1 WHERE member_id=%s", (session["member_id"],))
+    conn.execute("UPDATE notifications SET is_read=1 WHERE member_id=?", (session["member_id"],))
     conn.commit()
     conn.close()
     flash("All notifications marked as read.", "success")
@@ -1007,7 +972,7 @@ def submit_feedback():
             return redirect("/feedback")
         conn = get_db()
         conn.execute(
-            "INSERT INTO feedback (member_id, subject, message) VALUES (%s,%s,%s)",
+            "INSERT INTO feedback (member_id, subject, message) VALUES (?,?,?)",
             (session["member_id"], subject, message)
         )
         conn.commit()
@@ -1017,7 +982,7 @@ def submit_feedback():
 
     conn = get_db()
     my_feedback = conn.execute(
-        "SELECT * FROM feedback WHERE member_id=%s ORDER BY created_at DESC",
+        "SELECT * FROM feedback WHERE member_id=? ORDER BY created_at DESC",
         (session["member_id"],)
     ).fetchall()
     conn.close()
@@ -1051,7 +1016,7 @@ def admin_reply_feedback(id):
         SELECT f.*, m.name as member_name
         FROM feedback f
         JOIN members m ON f.member_id = m.id
-        WHERE f.id=%s
+        WHERE f.id=?
     """, (id,)).fetchone()
 
     if not fb:
@@ -1062,7 +1027,7 @@ def admin_reply_feedback(id):
     if request.method == "POST":
         reply = request.form["admin_reply"].strip()
         conn.execute(
-            "UPDATE feedback SET admin_reply=%s, status='Resolved' WHERE id=%s",
+            "UPDATE feedback SET admin_reply=?, status='Resolved' WHERE id=?",
             (reply, id)
         )
 
@@ -1072,7 +1037,7 @@ def admin_reply_feedback(id):
             f"Reply: \"{reply}\". Visit Feedback section to view the full response."
         )
         conn.execute(
-            "INSERT INTO notifications (member_id, message) VALUES (%s,%s)",
+            "INSERT INTO notifications (member_id, message) VALUES (?,?)",
             (fb["member_id"], notif_msg)
         )
 
@@ -1100,7 +1065,7 @@ def my_diet():
         SELECT dp.* 
         FROM diet_plans dp
         JOIN member_diet_plans mdp ON dp.id = mdp.diet_plan_id
-        WHERE mdp.member_id = %s
+        WHERE mdp.member_id = ?
     """, (session["member_id"],)).fetchone()
     conn.close()
     return render_template("my_diet.html", diet=diet)
@@ -1126,7 +1091,7 @@ def admin_add_diet_plan():
         
         conn = get_db()
         conn.execute(
-            "INSERT INTO diet_plans (name, description, fitness_goal) VALUES (%s,%s,%s)",
+            "INSERT INTO diet_plans (name, description, fitness_goal) VALUES (?,?,?)",
             (name, description, fitness_goal)
         )
         conn.commit()
@@ -1142,7 +1107,7 @@ def admin_edit_diet_plan(id):
         return redirect("/admin/login")
     
     conn = get_db()
-    plan = conn.execute("SELECT * FROM diet_plans WHERE id=%s", (id,)).fetchone()
+    plan = conn.execute("SELECT * FROM diet_plans WHERE id=?", (id,)).fetchone()
     
     if not plan:
         flash("Diet plan not found.", "danger")
@@ -1155,7 +1120,7 @@ def admin_edit_diet_plan(id):
         fitness_goal = request.form["fitness_goal"]
         
         conn.execute(
-            "UPDATE diet_plans SET name=%s, description=%s, fitness_goal=%s WHERE id=%s",
+            "UPDATE diet_plans SET name=?, description=?, fitness_goal=? WHERE id=?",
             (name, description, fitness_goal, id)
         )
         conn.commit()
@@ -1171,8 +1136,8 @@ def admin_delete_diet_plan(id):
     if admin_required():
         return redirect("/admin/login")
     conn = get_db()
-    conn.execute("DELETE FROM diet_plans WHERE id=%s", (id,))
-    conn.execute("DELETE FROM member_diet_plans WHERE diet_plan_id=%s", (id,))
+    conn.execute("DELETE FROM diet_plans WHERE id=?", (id,))
+    conn.execute("DELETE FROM member_diet_plans WHERE diet_plan_id=?", (id,))
     conn.commit()
     conn.close()
     flash("Diet plan deleted.", "success")
@@ -1189,17 +1154,12 @@ def admin_assign_diet(pre_member_id=None):
         member_id = request.form["member_id"]
         diet_plan_id = request.form["diet_plan_id"]
         
-        # 🔹 SQLite এর 'INSERT OR REPLACE' এর বদলে PostgreSQL ফ্রেন্ডলি লজিক (ON CONFLICT)
-        conn.execute("""
-            INSERT INTO member_diet_plans (member_id, diet_plan_id) 
-            VALUES (%s, %s)
-            ON CONFLICT (member_id) 
-            DO UPDATE SET diet_plan_id = EXCLUDED.diet_plan_id
-        """, (member_id, diet_plan_id))
+        # Check if already assigned, replace if so (UPSERT-like behavior due to UNIQUE constraint)
+        conn.execute("INSERT OR REPLACE INTO member_diet_plans (member_id, diet_plan_id) VALUES (?,?)", (member_id, diet_plan_id))
         
         # Notify user
-        plan_name = conn.execute("SELECT name FROM diet_plans WHERE id=%s", (diet_plan_id,)).fetchone()["name"]
-        conn.execute("INSERT INTO notifications (member_id, message) VALUES (%s,%s)", 
+        plan_name = conn.execute("SELECT name FROM diet_plans WHERE id=?", (diet_plan_id,)).fetchone()["name"]
+        conn.execute("INSERT INTO notifications (member_id, message) VALUES (?,?)", 
                      (member_id, f"🥗 Admin has assigned a new diet plan to you: {plan_name}. Check 'My Diet' for details!"))
         
         conn.commit()
@@ -1230,7 +1190,7 @@ def admin_delete_assigned_diet(id):
     if admin_required():
         return redirect("/admin/login")
     conn = get_db()
-    conn.execute("DELETE FROM member_diet_plans WHERE id=%s", (id,))
+    conn.execute("DELETE FROM member_diet_plans WHERE id=?", (id,))
     conn.commit()
     conn.close()
     flash("Diet assignment removed.", "success")
@@ -1257,24 +1217,24 @@ def admin_attendance():
         target_date = request.form.get('attendance_date', selected_date)
         
         # আগে এই তারিখের যা এটেন্ডেন্স ছিল তা ডিলিট করা হচ্ছে যাতে ডুপ্লিকেট না হয়
-        db.execute('DELETE FROM attendance WHERE date = %s', (target_date,))
+        db.execute('DELETE FROM attendance WHERE date = ?', (target_date,))
         
         members_list = db.execute('SELECT id FROM members').fetchall()
         for m in members_list:
             status = request.form.get(f'status_{m["id"]}')
             if status == 'Present':
-                db.execute('INSERT INTO attendance (member_id, status, date) VALUES (%s, %s, %s)',
+                db.execute('INSERT INTO attendance (member_id, status, date) VALUES (?, ?, ?)',
                            (m['id'], 'Present', target_date))
         
         db.commit()
         flash(f'Attendance successfully saved for {target_date}!', 'success')
         # সেভ করার পর ওই তারিখের পেজেই রিডাইরেক্ট করবে
-        return redirect(f'/admin/attendance%sdate={target_date}')
+        return redirect(f'/admin/attendance?date={target_date}')
 
     members = db.execute('SELECT id, name, phone FROM members').fetchall()
     
     # সিলেক্টেড ডেটের প্রেজেন্ট মেম্বারদের আইডি বের করা হচ্ছে
-    today_attendance = db.execute('SELECT member_id FROM attendance WHERE date = %s AND status = "Present"', (selected_date,)).fetchall()
+    today_attendance = db.execute('SELECT member_id FROM attendance WHERE date = ? AND status = "Present"', (selected_date,)).fetchall()
     present_ids = [row['member_id'] for row in today_attendance]
     
     history = db.execute('''
@@ -1303,7 +1263,7 @@ def admin_assign_workout():
         workout_type = request.form.get('workout_type')
         schedule_details = request.form.get('schedule_details')
         
-        db.execute('INSERT INTO workouts (member_id, workout_type, schedule_details) VALUES (%s, %s, %s)',
+        db.execute('INSERT INTO workouts (member_id, workout_type, schedule_details) VALUES (?, ?, ?)',
                    (member_id, workout_type, schedule_details))
         db.commit()
         flash('Workout assigned successfully!', 'success')
@@ -1325,7 +1285,7 @@ def admin_assign_workout():
 def admin_delete_workout(id):
     if not session.get('admin'): return redirect('/admin/login')
     db = get_db()
-    db.execute('DELETE FROM workouts WHERE id = %s', (id,))
+    db.execute('DELETE FROM workouts WHERE id = ?', (id,))
     db.commit()
     flash('Workout plan removed.', 'info')
     return redirect('/admin/assign_workout')
@@ -1343,7 +1303,7 @@ def admin_edit_workout(id):
         return redirect('/admin/login')
     
     db = get_db()
-    workout = db.execute('SELECT * FROM workouts WHERE id = %s', (id,)).fetchone()
+    workout = db.execute('SELECT * FROM workouts WHERE id = ?', (id,)).fetchone()
     
     if not workout:
         flash('Workout not found!', 'danger')
@@ -1355,8 +1315,8 @@ def admin_edit_workout(id):
         
         db.execute('''
             UPDATE workouts 
-            SET workout_type = %s, schedule_details = %s 
-            WHERE id = %s
+            SET workout_type = ?, schedule_details = ? 
+            WHERE id = ?
         ''', (workout_type, schedule_details, id))
         db.commit()
         flash('Workout updated successfully!', 'success')
@@ -1378,7 +1338,7 @@ def my_workouts():
 
     conn = get_db()
     workouts = conn.execute(
-        "SELECT * FROM workouts WHERE member_id=%s ORDER BY id DESC",
+        "SELECT * FROM workouts WHERE member_id=? ORDER BY id DESC",
         (session["member_id"],)
     ).fetchall()
     conn.close()
@@ -1397,13 +1357,13 @@ def my_fitness():
 
     # 🔹 Current fitness
     fitness = conn.execute(
-        "SELECT * FROM fitness_profile WHERE member_id=%s",
+        "SELECT * FROM fitness_profile WHERE member_id=?",
         (session["member_id"],)
     ).fetchone()
 
     # 🔥 NEW: Progress history
     progress = conn.execute(
-        "SELECT * FROM progress WHERE member_id=%s ORDER BY date",
+        "SELECT * FROM progress WHERE member_id=? ORDER BY date",
         (session["member_id"],)
     ).fetchall()
 
@@ -1420,9 +1380,5 @@ def my_fitness():
 # ==============================================================
 #  RUN
 # ==============================================================
-import os
-
-if __name__ == '__main__':
-    # রেন্ডার থেকে পোর্ট নম্বর নেবে, না পেলে ডিফল্ট ৫০০০ ব্যবহার করবে
-    port = int(os.environ.get("PORT", 5000))
-    app.run(host='0.0.0.0', port=port)
+if __name__ == "__main__":
+    app.run(debug=True, host='0.0.0.0', port=8080)
