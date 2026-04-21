@@ -1,0 +1,84 @@
+{% extends "base.html" %}
+{% block title %}Manage Attendance - Admin{% endblock %}
+{% block content %}
+<div class="page-wrapper">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem;">
+        <h2>📅 Manage Attendance</h2>
+
+        <form method="GET" action="/admin/attendance" style="background: #eee; padding: 10px; border-radius: 8px;">
+            <label for="date" style="font-weight: bold; margin-right: 10px;">Select Date:</label>
+            <input type="date" id="date" name="date" value="{{ selected_date }}" onchange="this.form.submit()"
+                style="padding: 5px; border-radius: 5px; border: 1px solid #ccc;">
+        </form>
+    </div>
+
+    <div class="card shadow-sm mb-5">
+        <p class="mb-4">Marking attendance for: <strong style="color: #2575fc; font-size: 1.2em;">{{ selected_date
+                }}</strong></p>
+
+        <form method="POST" action="/admin/attendance">
+            <input type="hidden" name="attendance_date" value="{{ selected_date }}">
+
+            <div class="table-container">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Member Name</th>
+                            <th>Phone</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for m in members %}
+                        <tr>
+                            <td style="font-weight: 500;">{{ m['name'] }}</td>
+                            <td class="text-muted">{{ m['phone'] }}</td>
+                            <td>
+                                <div style="display: flex; gap: 1rem;">
+                                    <label style="cursor: pointer;">
+                                        <input type="radio" name="status_{{ m['id'] }}" value="Present" {% if m['id'] in
+                                            present_ids or not present_ids %} checked {% endif %}>
+                                        <span style="color: green; font-weight: bold;">Present</span>
+                                    </label>
+                                    <label style="cursor: pointer;">
+                                        <input type="radio" name="status_{{ m['id'] }}" value="Absent" {% if m['id'] not
+                                            in present_ids and present_ids %} checked {% endif %}>
+                                        <span style="color: red; font-weight: bold;">Absent</span>
+                                    </label>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="mt-4">
+                <button type="submit" class="btn btn-success">Confirm & Save Attendance</button>
+            </div>
+        </form>
+    </div>
+
+    <div class="card shadow-sm" style="background-color: #f9f9f9;">
+        <h3>📊 Recent History</h3>
+        <div class="table-container mt-3">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Date</th>
+                        <th>Present Members</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for record in history %}
+                    <tr>
+                        <td>{{ record['date'] }}</td>
+                        <td><strong>{{ record['total_present'] }}</strong> Members</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

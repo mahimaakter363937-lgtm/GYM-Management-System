@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+{% block title %}Reply to Feedback - Admin{% endblock %}
+{% block content %}
+<div class="page-wrapper narrow">
+  <h2>💬 Reply to Feedback</h2>
+  <p class="text-muted mb-4">Reviewing complaint from <strong>{{ fb['member_name'] }}</strong></p>
+
+  <div class="card" style="margin-bottom:1.5rem;">
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.75rem;">
+      <strong style="font-size:1.1rem;">{{ fb['subject'] }}</strong>
+      {% if fb['status'] == 'Resolved' %}
+        <span class="pill pill-success">Resolved</span>
+      {% else %}
+        <span class="pill pill-warning">Pending</span>
+      {% endif %}
+    </div>
+    <p style="margin:0 0 0.5rem;">{{ fb['message'] }}</p>
+    <small class="text-muted">Submitted on: {{ fb['created_at'][:10] }}</small>
+
+    {% if fb['admin_reply'] %}
+    <div style="margin-top:1rem; padding:0.75rem 1rem; background:rgba(16,185,129,0.1); border-radius:8px; border-left:3px solid var(--success-color);">
+      <strong style="color:var(--success-color);">Previous Reply:</strong>
+      <p style="margin:0.5rem 0 0;">{{ fb['admin_reply'] }}</p>
+    </div>
+    {% endif %}
+  </div>
+
+  <div class="card">
+    <h3>{{ 'Update Reply' if fb['admin_reply'] else 'Send Reply' }}</h3>
+    <form method="POST">
+      <div class="form-group">
+        <label class="form-label">Admin Response</label>
+        <textarea name="admin_reply" class="form-control" rows="5" placeholder="Type your response to the member..." required style="resize:vertical;">{{ fb['admin_reply'] or '' }}</textarea>
+      </div>
+      <button type="submit" class="btn btn-success btn-full">Send Reply & Mark Resolved</button>
+    </form>
+  </div>
+
+  <div class="mt-4">
+    <a href="/admin/feedback" class="btn btn-outline">← Back to All Feedback</a>
+  </div>
+</div>
+{% endblock %}
