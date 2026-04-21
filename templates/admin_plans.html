@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% block title %}Membership Plans - Admin{% endblock %}
+{% block content %}
+<div class="page-wrapper">
+  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem;">
+    <h2>Membership Plans</h2>
+    <a href="/admin/add_plan" class="btn btn-primary">Create Plan</a>
+  </div>
+
+  <div class="table-container">
+    <table>
+      <thead>
+        <tr>
+          <th>ID</th>
+          <th>Plan Name</th>
+          <th>Price</th>
+          <th>Duration (Days)</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for p in plans %}
+        <tr>
+          <td>{{ p['id'] }}</td>
+          <td>{{ p['plan_name'] }}</td>
+          <td>${{ p['price'] }}</td>
+          <td>{{ p['duration_days'] }}</td>
+          <td>
+            <a href="/admin/edit_plan/{{ p['id'] }}" class="btn btn-warning btn-sm">Edit</a>
+            <a href="/admin/delete_plan/{{ p['id'] }}" class="btn btn-danger btn-sm" onclick="return confirm('Delete plan?')">Delete</a>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

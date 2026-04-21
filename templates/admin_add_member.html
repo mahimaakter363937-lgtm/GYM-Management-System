@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% block title %}Add Member - Admin{% endblock %}
+{% block content %}
+<div class="page-wrapper narrow">
+  <div class="card">
+    <h2>Register New Member</h2>
+    <form method="POST">
+      <div class="form-group">
+        <label class="form-label">Full Name</label>
+        <input type="text" name="name" class="form-control" placeholder="John Doe" required>
+      </div>
+      <div class="form-grid-2">
+        <div class="form-group">
+          <label class="form-label">Phone</label>
+          <input type="text" name="phone" class="form-control" placeholder="123456789">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Age</label>
+          <input type="number" name="age" class="form-control" placeholder="25">
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Fitness Goal</label>
+        <select name="fitness_goal" class="form-control">
+          <option value="Weight Loss">Weight Loss</option>
+          <option value="Muscle Gain">Muscle Gain</option>
+          <option value="Endurance">Endurance</option>
+          <option value="General Fitness">General Fitness</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Username</label>
+        <input type="text" name="username" class="form-control" placeholder="johndoe" required>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Password</label>
+        <input type="password" name="password" class="form-control" placeholder="Set temporary password" required>
+      </div>
+      <button type="submit" class="btn btn-primary btn-full">Add Member</button>
+      <a href="/admin/members" class="btn btn-outline btn-full mt-3" style="text-align: center;">Cancel</a>
+    </form>
+  </div>
+</div>
+{% endblock %}

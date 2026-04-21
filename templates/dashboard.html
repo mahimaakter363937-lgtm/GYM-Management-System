@@ -1,0 +1,93 @@
+{% extends "base.html" %}
+{% block title %}Dashboard - Gym Management{% endblock %}
+{% block content %}
+
+<div class="page-wrapper">
+  <h1>Welcome, {{ member['name'] }}</h1>
+  <p class="text-muted">Manage your fitness journey here.</p>
+
+  <div class="nav-grid mt-3">
+
+    <!-- Profile -->
+    <a href="/profile" class="nav-card">
+      <div class="nav-icon">👤</div>
+      <div class="nav-label">Profile</div>
+      <div class="nav-desc">Update your info</div>
+    </a>
+
+    <!-- Fitness -->
+    <a href="/fitness" class="nav-card">
+      <div class="nav-icon">🏋️</div>
+      <div class="nav-label">Fitness</div>
+      <div class="nav-desc">Goal: {{ member['fitness_goal'] }}</div>
+    </a>
+
+    <!-- My Diet -->
+    <a href="/my_diet" class="nav-card" style="border-top: 3px solid var(--success-color);">
+      <div class="nav-icon">🥗</div>
+      <div class="nav-label">My Diet</div>
+      <div class="nav-desc">Assigned Diet Plan</div>
+    </a>
+
+    <!-- Membership Plans -->
+    <a href="/membership" class="nav-card">
+      <div class="nav-icon">💳</div>
+      <div class="nav-label">Plans</div>
+      <div class="nav-desc">Buy Membership</div>
+    </a>
+
+    <!-- Membership Status -->
+    <a href="/membership_status" class="nav-card">
+      <div class="nav-icon">📅</div>
+      <div class="nav-label">Status</div>
+      <div class="nav-desc">Check Expiry</div>
+    </a>
+
+    <!-- Payment History -->
+    <a href="/payment_history" class="nav-card">
+      <div class="nav-icon">📜</div>
+      <div class="nav-label">History</div>
+      <div class="nav-desc">Payment Records</div>
+    </a>
+
+    <!-- Notifications -->
+    <a href="/notifications" class="nav-card">
+      <div class="nav-icon">🔔</div>
+      <div class="nav-label">Notifications</div>
+      <div class="nav-desc">Expiry & Alerts</div>
+    </a>
+
+    <!-- Feedback -->
+    <a href="/feedback" class="nav-card">
+      <div class="nav-icon">💬</div>
+      <div class="nav-label">Feedback</div>
+      <div class="nav-desc">Submit a Complaint</div>
+    </a>
+
+    <!-- 🔥 NEW: Fitness Progress -->
+    <a href="/my_fitness" class="nav-card">
+      <div class="nav-icon">📊</div>
+      <div class="nav-label">Fitness Progress</div>
+      <div class="nav-desc">
+        Weight: {{ fitness.weight if fitness else 'N/A' }}<br>
+        BMI: {{ fitness.bmi if fitness else 'N/A' }}
+      </div>
+    </a>
+
+    <!-- 🔥 NEW: Workout Schedule -->
+    <a href="/my_workouts" class="nav-card">
+      <div class="nav-icon">🏃</div>
+      <div class="nav-label">Workout Schedule</div>
+      <div class="nav-desc">
+        {% if workouts %}
+          {{ workouts[0].workout_type }}...
+        {% else %}
+          No workouts assigned
+        {% endif %}
+      </div>
+    </a>
+
+  </div>
+</div>
+
+{% endblock %}
