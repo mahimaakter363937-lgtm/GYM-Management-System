@@ -94,11 +94,17 @@
                             </div>
                         </td>
                         <td class="text-center">
-                            <a href="/admin/delete_workout/{{ w['id'] }}" class="btn btn-sm btn-outline-danger"
-                                style="border-radius: 20px;"
-                                onclick="return confirm('Remove this workout plan from {{ w['member_name'] }}?')">
-                                <i class="fas fa-trash-alt"></i> Remove
-                            </a>
+                            <div class="d-flex justify-content-center gap-2">
+                                <a href="/admin/edit_workout/{{ w['id'] }}" class="btn btn-sm btn-outline-primary"
+                                    style="border-radius: 20px;">
+                                    <i class="fas fa-edit"></i> Edit
+                                </a>
+                                <a href="/admin/delete_workout/{{ w['id'] }}" class="btn btn-sm btn-outline-danger"
+                                    style="border-radius: 20px;"
+                                    onclick='return confirm("Remove this workout plan from {{ w.member_name }}?")'>
+                                    <i class="fas fa-trash-alt"></i> Remove
+                                </a>
+                            </div>
                         </td>
                     </tr>
                     {% else %}

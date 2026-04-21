@@ -8,14 +8,14 @@
   </div>
 
   <div class="table-container">
-    <table class="table table-hover">
+    <table>
       <thead>
         <tr>
           <th>ID</th>
           <th>Name</th>
           <th>Phone</th>
           <th>Username</th>
-          <th class="text-center">Actions</th>
+          <th>Actions</th>
         </tr>
       </thead>
       <tbody>
@@ -25,27 +25,10 @@
           <td>{{ m['name'] }}</td>
           <td>{{ m['phone'] }}</td>
           <td>{{ m['username'] }}</td>
-
-          <td style="display: flex; gap: 8px; justify-content: center;">
-
-            <a href="/admin/assign_workout/{{ m['id'] }}" class="btn btn-outline-primary btn-sm" title="Assign Workout">
-              🏋️ Workout
-            </a>
-
-            <a href="/admin/assign_diet/{{ m['id'] }}" class="btn btn-outline-success btn-sm" title="Assign Diet">
-              🥗 Diet
-            </a>
-
-         
-
-            <a href="/admin/edit_member/{{ m['id'] }}" class="btn btn-outline-warning btn-sm" title="Edit">
-              ✏️
-            </a>
-            <a href="/admin/delete_member/{{ m['id'] }}" class="btn btn-outline-danger btn-sm"
-              onclick="return confirm('Delete member?')" title="Delete">
-              🗑️
-            </a>
-
+          <td>
+            <a href="/admin/edit_member/{{ m['id'] }}" class="btn btn-warning btn-sm" style="padding:0.25rem 0.5rem; font-size:0.8rem;">Edit</a>
+            <a href="/admin/assign_diet/{{ m['id'] }}" class="btn btn-primary btn-sm" style="padding:0.25rem 0.5rem; font-size:0.8rem;">Assign Diet</a>
+            <a href="/admin/delete_member/{{ m['id'] }}" class="btn btn-danger btn-sm" style="padding:0.25rem 0.5rem; font-size:0.8rem;" onclick="return confirm('Delete member?')">Delete</a>
           </td>
         </tr>
         {% endfor %}
