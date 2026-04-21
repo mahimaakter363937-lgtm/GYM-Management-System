@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{% block title %}My Fitness{% endblock %}
+{% block content %}
+
+<div class="page-wrapper">
+  <h1>📊 My Fitness Progress</h1>
+
+  <div class="card" style="border-top: 4px solid #ff4d6d;">
+    {% if fitness %}
+      <p><strong>Height:</strong> {{ fitness.height }} cm</p>
+      <p><strong>Weight:</strong> {{ fitness.weight }} kg</p>
+      <p><strong>BMI:</strong> {{ fitness.bmi }}</p>
+      <p><strong>Level:</strong> {{ fitness.fitness_level }}</p>
+    {% else %}
+      <p>No fitness data available.</p>
+    {% endif %}
+  </div>
+</div>
+
+{% endblock %}

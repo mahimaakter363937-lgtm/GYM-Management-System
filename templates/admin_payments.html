@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+{% block title %}All Payments - Admin{% endblock %}
+{% block content %}
+<div class="page-wrapper">
+  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem;">
+    <h2>Payment Records</h2>
+    <div class="header-actions">
+      <a href="/admin/add_payment" class="btn btn-primary" style="margin-right: 1rem;">+ Add New Payment</a>
+      <a href="/admin" class="btn btn-outline">Back to Dashboard</a>
+    </div>
+  </div>
+  
+  <div class="table-container">
+    <table>
+      <thead>
+        <tr>
+          <th>Member</th>
+          <th>Plan</th>
+          <th>Amount</th>
+          <th>Status</th>
+          <th>Date</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for p in payments %}
+        <tr>
+          <td style="font-weight: 500;">{{ p['name'] }}</td>
+          <td>{{ p['plan_name'] }}</td>
+          <td>${{ "%.2f"|format(p['amount']) }}</td>
+          <td>
+            <span class="pill {% if p['payment_status'] == 'Paid' %}pill-success{% elif p['payment_status'] == 'Pending' %}pill-warning{% else %}pill-danger{% endif %}">
+              {{ p['payment_status'] }}
+            </span>
+          </td>
+          <td class="text-muted">{{ p['payment_date'] }}</td>
+          <td>
+            <a href="/admin/edit_payment/{{ p['id'] }}" class="btn btn-warning btn-sm" style="padding: 0.4rem 0.8rem; font-size: 0.8rem;">Edit</a>
+            <a href="/admin/delete_payment/{{ p['id'] }}" class="btn btn-danger btn-sm" style="padding: 0.4rem 0.8rem; font-size: 0.8rem;" onclick="return confirm('Delete this payment record?')">Delete</a>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

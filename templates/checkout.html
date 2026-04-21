@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+{% block title %}Checkout - Gym Management{% endblock %}
+
+{% block content %}
+<div class="page-wrapper narrow">
+  <div class="card">
+    <h2>Secure Checkout (Simulated)</h2>
+    <p>Plan: <strong>{{ plan['plan_name'] }}</strong></p>
+    <p>Price: <strong>${{ plan['price'] }}</strong></p>
+    <p class="text-muted mb-3">Duration: {{ plan['duration_days'] }} Days</p>
+
+    <form id="payment-form" action="/process_payment" method="POST">
+      <input type="hidden" name="plan_id" value="{{ plan['id'] }}">
+
+      <div class="form-group">
+        <label class="form-label">Card Number</label>
+        <input type="text" name="card_number" class="form-control" placeholder="Any 16-digit number" required maxlength="16" minlength="16">
+      </div>
+
+      <div class="form-grid-2">
+        <div class="form-group">
+          <label class="form-label">Expiry Date</label>
+          <input type="text" name="expiry" class="form-control" placeholder="MM/YY" required>
+        </div>
+        <div class="form-group">
+          <label class="form-label">CVC</label>
+          <input type="text" name="cvc" class="form-control" placeholder="Any 3 digits" required maxlength="3" minlength="3">
+        </div>
+      </div>
+
+      <div id="payment-status-msg" class="text-muted mb-3" style="font-size: 0.85rem;">
+        * Note: This is an elite gym simulation. Any details entered will be accepted.
+      </div>
+
+      <button id="pay-btn" type="submit" class="btn btn-success btn-full">Submit Payment</button>
+      <a href="/membership" class="btn btn-outline btn-full mt-3" style="text-align: center;">Choose Different Plan</a>
+    </form>
+  </div>
+</div>
+
+<script>
+const form = document.getElementById('payment-form');
+form.addEventListener('submit', function(e) {
+  const btn = document.getElementById('pay-btn');
+  btn.disabled = true;
+  btn.textContent = 'Processing...';
+  // Form will submit naturally to /process_payment
+});
+</script>
+{% endblock %}
