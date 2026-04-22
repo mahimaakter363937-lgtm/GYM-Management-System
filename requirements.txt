@@ -1,0 +1,6 @@
+Flask
+werkzeug
+stripe
+python-dotenv
+psycopg2-binary
+gunicorn

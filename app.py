@@ -1,5 +1,6 @@
 from flask import Flask, render_template, request, redirect, session, flash
-import sqlite3
+import psycopg2
+import psycopg2.extras
 from werkzeug.security import generate_password_hash, check_password_hash
 from datetime import datetime, timedelta
 import stripe
@@ -27,16 +28,37 @@ ADMIN_USERNAME = os.getenv("ADMIN_USERNAME")
 ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD")
 
 
+
 # ---------------------------------------------------------------
-# DATABASE HELPER
+# POSTGRES DATABASE HELPER
 # ---------------------------------------------------------------
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-DATABASE = os.path.join(BASE_DIR, "database.db")
+class DBWrapper:
+    def __init__(self, conn):
+        self.conn = conn
+
+    def execute(self, query, params=None):
+        if params is None:
+            params = ()
+        # Auto-translate SQLite '?' placeholders to Postgres '%s'
+        query = query.replace("?", "%s")
+        cur = self.conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
+        cur.execute(query, params)
+        return cur
+
+    def commit(self):
+        self.conn.commit()
+
+    def close(self):
+        self.conn.close()
 
 def get_db():
-    conn = sqlite3.connect(DATABASE)
-    conn.row_factory = sqlite3.Row
-    return conn
+    # Fetch the Render database URL
+    db_url = os.getenv("DATABASE_URL")
+    if not db_url:
+        raise RuntimeError("DATABASE_URL is not set in environment variables!")
+    
+    conn = psycopg2.connect(db_url)
+    return DBWrapper(conn)
 
 
 # ==============================================================
@@ -69,7 +91,7 @@ def register():
             conn.commit()
             flash("Registration successful! Please log in.", "success")
             return redirect("/login")
-        except sqlite3.IntegrityError:
+        except psycopg2.IntegrityError::
             flash("Username already taken. Please choose another.", "danger")
         finally:
             conn.close()
@@ -548,7 +570,7 @@ def admin_add_member():
             conn.commit()
             flash(f"Member '{name}' added successfully!", "success")
             return redirect("/admin/members")
-        except sqlite3.IntegrityError:
+        except psycopg2.IntegrityError::
             flash("Username already exists.", "danger")
         finally:
             conn.close()
@@ -1155,7 +1177,9 @@ def admin_assign_diet(pre_member_id=None):
         diet_plan_id = request.form["diet_plan_id"]
         
         # Check if already assigned, replace if so (UPSERT-like behavior due to UNIQUE constraint)
-        conn.execute("INSERT OR REPLACE INTO member_diet_plans (member_id, diet_plan_id) VALUES (?,?)", (member_id, diet_plan_id))
+        # Safe replacement for Postgres
+        conn.execute("DELETE FROM member_diet_plans WHERE member_id=?", (member_id,))
+        conn.execute("INSERT INTO member_diet_plans (member_id, diet_plan_id) VALUES (?,?)", (member_id, diet_plan_id))
         
         # Notify user
         plan_name = conn.execute("SELECT name FROM diet_plans WHERE id=?", (diet_plan_id,)).fetchone()["name"]
