@@ -39,7 +39,7 @@ class DBWrapper:
     def execute(self, query, params=None):
         if params is None:
             params = ()
-        # Auto-translate SQLite '?' placeholders to Postgres '%s'
+        # Auto-translate SQLite '?' placeholders to Postgres '?'
         query = query.replace("?", "%s")
         cur = self.conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
         cur.execute(query, params)
@@ -91,7 +91,7 @@ def register():
             conn.commit()
             flash("Registration successful! Please log in.", "success")
             return redirect("/login")
-        except psycopg2.IntegrityError::
+        except psycopg2.IntegrityError:
             flash("Username already taken. Please choose another.", "danger")
         finally:
             conn.close()
@@ -570,7 +570,7 @@ def admin_add_member():
             conn.commit()
             flash(f"Member '{name}' added successfully!", "success")
             return redirect("/admin/members")
-        except psycopg2.IntegrityError::
+        except psycopg2.IntegrityError:
             flash("Username already exists.", "danger")
         finally:
             conn.close()
@@ -1253,7 +1253,7 @@ def admin_attendance():
         db.commit()
         flash(f'Attendance successfully saved for {target_date}!', 'success')
         # সেভ করার পর ওই তারিখের পেজেই রিডাইরেক্ট করবে
-        return redirect(f'/admin/attendance?date={target_date}')
+        return redirect(f'/admin/attendance%sdate={target_date}')
 
     members = db.execute('SELECT id, name, phone FROM members').fetchall()
     
