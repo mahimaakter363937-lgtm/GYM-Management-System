@@ -101,6 +101,14 @@ def register():
 
 @app.route("/login", methods=["GET", "POST"])
 def login():
+    # ১. যদি অ্যাডমিন আগে থেকেই লগইন থাকে, তবে সরাসরি অ্যাডমিন ড্যাশবোর্ডে পাঠিয়ে দিন
+    if session.get("admin"):
+        return redirect("/admin")
+        
+    # ২. যদি কোনো মেম্বার আগে থেকেই লগইন থাকে, তবে সরাসরি মেম্বার ড্যাশবোর্ডে পাঠিয়ে দিন
+    if "member_id" in session:
+        return redirect("/dashboard")
+
     if request.method == "POST":
         username = request.form["username"].strip()
         password = request.form["password"].strip()
@@ -122,8 +130,8 @@ def login():
             return redirect("/dashboard")
 
         flash("Invalid username or password.", "danger")
+        
     return render_template("login.html")
-
 
 @app.route("/logout")
 def logout():
@@ -445,15 +453,21 @@ def payment_history():
 # ==============================================================
 @app.route("/admin/login", methods=["GET", "POST"])
 def admin_login():
+    # যদি অ্যাডমিন আগে থেকেই লগইন থাকে, তবে সরাসরি অ্যাডমিন ড্যাশবোর্ডে পাঠিয়ে দিন
+    if session.get("admin"):
+        return redirect("/admin")
+
     if request.method == "POST":
         username = request.form["username"].strip()
         password = request.form["password"].strip()
-        if (username == ADMIN_USERNAME and
-                password == ADMIN_PASSWORD):
+        
+        if (username == ADMIN_USERNAME and password == ADMIN_PASSWORD):
             session["admin"] = True
             flash("Welcome, Admin! 👑", "success")
             return redirect("/admin")
+            
         flash("Invalid admin credentials.", "danger")
+        
     return render_template("admin_login.html")
 
 
@@ -461,7 +475,6 @@ def admin_login():
 def admin_logout():
     session.pop("admin", None)
     return redirect("/")
-
 
 def admin_required():
     return "admin" not in session
