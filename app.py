@@ -10,7 +10,7 @@ load_dotenv()
 
 
 app = Flask(__name__)
-app.secret_key = os.getenv("FLASK_SECRET_KEY")
+app.secret_key = os.getenv("FLASK_SECRET_KEY", "fallback_development_secret_key")
 # ---------------------------------------------------------------
 # Stripe Configuration
 # Use test keys — replace with live keys in production
